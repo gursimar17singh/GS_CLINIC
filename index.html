@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HeartMate — Blood Pressure Tracker</title>
+  <meta name="description" content="A warm and friendly blood pressure tracker to monitor your loved one's health with ease, care, and clear insights." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&family=Quicksand:wght@500;600;700&family=Dancing+Script:wght@700&family=Caveat:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Prevent flash of wrong theme -->
+  <script>
+    (function() {
+      const saved = localStorage.getItem('heartmate_theme');
+      if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- ===================== NAVBAR ===================== -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-brand">
+      <div class="nav-logo">
+        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 34s-14-9.5-14-18a8 8 0 0 1 14-5.3A8 8 0 0 1 34 16c0 8.5-14 18-14 18z" fill="url(#heartGrad)" opacity="0.9"/>
+          <polyline points="10,20 14,16 17,23 20,14 23,22 26,18 30,20" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <defs>
+            <linearGradient id="heartGrad" x1="6" y1="10" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#7EC8E3"/>
+              <stop offset="100%" stop-color="#6BCFB0"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <span class="nav-title">HeartMate</span>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="tab-log" onclick="navigateTo('log')" aria-label="Daily Log">
+        <span class="tab-icon">📋</span>
+        <span class="tab-label">Daily Log</span>
+      </button>
+      <button class="nav-tab" id="tab-calendar" onclick="navigateTo('calendar')" aria-label="Calendar View">
+        <span class="tab-icon">📅</span>
+        <span class="tab-label">Calendar</span>
+      </button>
+      <button class="nav-tab" id="tab-analytics" onclick="navigateTo('analytics')" aria-label="Health Analytics">
+        <span class="tab-icon">📈</span>
+        <span class="tab-label">Analytics</span>
+      </button>
+      <button class="nav-tab" id="tab-report" onclick="navigateTo('report')" aria-label="Report Generator">
+        <span class="tab-icon">🩺</span>
+        <span class="tab-label">Rx Receipt</span>
+      </button>
+    </div>
+    <div class="nav-actions">
+      <!-- Global Status Toggle Switch -->
+      <div class="nav-status-toggle-wrap" title="Toggle status classification (Normal, Elevated, Hypertension)">
+        <label class="nav-status-toggle" for="globalClinicalToggle">
+          <span class="nav-status-icon">🩺</span>
+          <span class="nav-status-text">Status</span>
+          <span class="nav-switch">
+            <input
+              type="checkbox"
+              id="globalClinicalToggle"
+              checked
+              onchange="toggleClinicalStatus(this.checked)"
+              aria-label="Status"
+            />
+            <span class="nav-switch-slider"></span>
+          </span>
+        </label>
+      </div>
+      <!-- Refresh Data Button -->
+      <button class="refresh-btn" id="refreshBtn" onclick="refreshAppData()" aria-label="Refresh Data" title="Refresh health records">
+        <span class="refresh-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+          </svg>
+        </span>
+        <span class="refresh-btn-text">Refresh</span>
+      </button>
+      <!-- Dark Mode Toggle -->
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle dark mode" title="Toggle dark/light mode">
+        <span class="theme-icon sun-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </span>
+        <span class="theme-icon moon-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </span>
+      </button>
+      <!-- Clear All Records -->
+      <button class="clear-btn" id="clearBtn" onclick="openClearModal()" aria-label="Clear all records" title="Clear all health records">
+        <span>🗑️</span>
+        <span class="clear-btn-text">Clear All</span>
+      </button>
+      <!-- Mobile hamburger -->
+      <button class="nav-menu-btn" id="menuToggle" onclick="toggleMobileMenu()" aria-label="Toggle Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <button class="mobile-tab" onclick="navigateTo('log'); toggleMobileMenu()">📋 Daily Log</button>
+    <button class="mobile-tab" onclick="navigateTo('calendar'); toggleMobileMenu()">📅 Calendar View</button>
+    <button class="mobile-tab" onclick="navigateTo('analytics'); toggleMobileMenu()">📈 Health Analytics</button>
+    <button class="mobile-tab" onclick="navigateTo('report'); toggleMobileMenu()">🩺 Report Generator</button>
+    <div class="mobile-toggle-row">
+      <span class="mobile-toggle-title">🩺 Status</span>
+      <label class="toggle-switch-wrap" for="mobileClinicalToggle" style="margin: 0; height: auto;">
+        <input
+          type="checkbox"
+          id="mobileClinicalToggle"
+          checked
+          onchange="toggleClinicalStatus(this.checked)"
+          aria-label="Status"
+        />
+        <span class="toggle-switch-slider"></span>
+      </label>
+    </div>
+    <button class="mobile-tab" onclick="refreshAppData(); toggleMobileMenu()">🔄 Refresh Data</button>
+    <button class="mobile-tab mobile-tab-danger" onclick="openClearModal(); toggleMobileMenu()">🗑️ Clear All Records</button>
+  </div>
+
+  <!-- ===================== PAGES ===================== -->
+  <main class="main-content">
+
+    <!-- ====== PAGE 1: DAILY LOG ====== -->
+    <section class="page active" id="page-log">
+      <div class="page-header">
+        <div class="header-text">
+          <h1 class="page-title">How is Mom doing today? 💙</h1>
+          <p class="page-subtitle">Log blood pressure readings three times a day to keep her heart health on track.</p>
+        </div>
+        <div class="date-selector-wrap">
+          <label for="logDate" class="date-label">📅 Select Date</label>
+          <input type="date" id="logDate" class="date-input" onchange="loadLogForDate()" />
+        </div>
+      </div>
+
+      <div class="reading-cards-grid" id="readingCardsGrid">
+        <!-- Morning Card -->
+        <div class="reading-card morning-card" id="card-morning">
+          <div class="card-header-strip">
+            <div class="card-icon morning-icon">🌅</div>
+            <div>
+              <h2 class="card-slot-title">Morning Check-in</h2>
+              <p class="card-slot-sub">Ideally before 10 AM</p>
+            </div>
+            <div class="reading-status-dot" id="dot-morning"></div>
+          </div>
+          <div class="input-row">
+            <div class="input-group">
+              <label class="input-label" for="morn-sys">Systolic</label>
+              <div class="input-with-unit">
+                <input type="number" id="morn-sys" class="bp-input" placeholder="120" min="60" max="250" />
+                <span class="unit-badge">mmHg</span>
+              </div>
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="morn-dia">Diastolic</label>
+              <div class="input-with-unit">
+                <input type="number" id="morn-dia" class="bp-input" placeholder="80" min="40" max="150" />
+                <span class="unit-badge">mmHg</span>
+              </div>
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="morn-pulse">Pulse</label>
+              <div class="input-with-unit">
+                <input type="number" id="morn-pulse" class="bp-input" placeholder="72" min="30" max="200" />
+                <span class="unit-badge">BPM</span>
+              </div>
+            </div>
+          </div>
+          <div class="input-row time-row">
+            <div class="input-group">
+              <label class="input-label" for="morn-time">⏰ Time of Reading</label>
+              <input type="time" id="morn-time" class="time-input" />
+            </div>
+            <div class="bp-status-badge" id="status-morning">—</div>
+          </div>
+        </div>
+
+        <!-- Afternoon Card -->
+        <div class="reading-card afternoon-card" id="card-afternoon">
+          <div class="card-header-strip">
+            <div class="card-icon afternoon-icon">☀️</div>
+            <div>
+              <h2 class="card-slot-title">Afternoon Reading</h2>
+              <p class="card-slot-sub">Best between 2 – 4 PM</p>
+            </div>
+            <div class="reading-status-dot" id="dot-afternoon"></div>
+          </div>
+          <div class="input-row">
+            <div class="input-group">
+              <label class="input-label" for="aft-sys">Systolic</label>
+              <div class="input-with-unit">
+                <input type="number" id="aft-sys" class="bp-input" placeholder="120" min="60" max="250" />
+                <span class="unit-badge">mmHg</span>
+              </div>
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="aft-dia">Diastolic</label>
+              <div class="input-with-unit">
+                <input type="number" id="aft-dia" class="bp-input" placeholder="80" min="40" max="150" />
+                <span class="unit-badge">mmHg</span>
+              </div>
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="aft-pulse">Pulse</label>
+              <div class="input-with-unit">
+                <input type="number" id="aft-pulse" class="bp-input" placeholder="72" min="30" max="200" />
+                <span class="unit-badge">BPM</span>
+              </div>
+            </div>
+          </div>
+          <div class="input-row time-row">
+            <div class="input-group">
+              <label class="input-label" for="aft-time">⏰ Time of Reading</label>
+              <input type="time" id="aft-time" class="time-input" />
+            </div>
+            <div class="bp-status-badge" id="status-afternoon">—</div>
+          </div>
+        </div>
+
+        <!-- Evening Card -->
+        <div class="reading-card evening-card" id="card-evening">
+          <div class="card-header-strip">
+            <div class="card-icon evening-icon">🌙</div>
+            <div>
+              <h2 class="card-slot-title">Evening Wind-Down</h2>
+              <p class="card-slot-sub">Suggested around 8 – 9 PM</p>
+            </div>
+            <div class="reading-status-dot" id="dot-evening"></div>
+          </div>
+          <div class="input-row">
+            <div class="input-group">
+              <label class="input-label" for="eve-sys">Systolic</label>
+              <div class="input-with-unit">
+                <input type="number" id="eve-sys" class="bp-input" placeholder="120" min="60" max="250" />
+                <span class="unit-badge">mmHg</span>
+              </div>
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="eve-dia">Diastolic</label>
+              <div class="input-with-unit">
+                <input type="number" id="eve-dia" class="bp-input" placeholder="80" min="40" max="150" />
+                <span class="unit-badge">mmHg</span>
+              </div>
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="eve-pulse">Pulse</label>
+              <div class="input-with-unit">
+                <input type="number" id="eve-pulse" class="bp-input" placeholder="72" min="30" max="200" />
+                <span class="unit-badge">BPM</span>
+              </div>
+            </div>
+          </div>
+          <div class="input-row time-row">
+            <div class="input-group">
+              <label class="input-label" for="eve-time">⏰ Time of Reading</label>
+              <input type="time" id="eve-time" class="time-input" />
+            </div>
+            <div class="bp-status-badge" id="status-evening">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-section">
+        <div class="save-tip">💡 <em>Readings are saved locally on this device.</em></div>
+        <button class="save-btn" id="saveBtn" onclick="saveReadings()">
+          <span class="save-btn-icon">💾</span>
+          <span>Save Today's Readings</span>
+          <div class="btn-ripple" id="btnRipple"></div>
+        </button>
+      </div>
+
+      <!-- Toast Notification -->
+      <div class="toast" id="toast"></div>
+    </section>
+
+    <!-- ====== PAGE 2: CALENDAR ====== -->
+    <section class="page" id="page-calendar">
+      <div class="page-header">
+        <div class="header-text">
+          <h1 class="page-title">Monthly Overview 🗓️</h1>
+          <p class="page-subtitle">See every day at a glance — click any date to view its readings.</p>
+        </div>
+      </div>
+
+      <div class="calendar-container">
+        <div class="calendar-nav">
+          <button class="cal-nav-btn" onclick="changeMonth(-1)" aria-label="Previous month">‹</button>
+          <h2 class="cal-month-title" id="calMonthTitle">October 2026</h2>
+          <button class="cal-nav-btn" onclick="changeMonth(1)" aria-label="Next month">›</button>
+        </div>
+
+        <div class="calendar-legend">
+          <span class="legend-item"><span class="legend-dot dot-full"></span> All 3 logged</span>
+          <span class="legend-item"><span class="legend-dot dot-partial"></span> Partial</span>
+          <span class="legend-item"><span class="legend-dot dot-none"></span> No readings</span>
+        </div>
+
+        <div class="calendar-grid-header">
+          <div class="cal-day-name">Sun</div>
+          <div class="cal-day-name">Mon</div>
+          <div class="cal-day-name">Tue</div>
+          <div class="cal-day-name">Wed</div>
+          <div class="cal-day-name">Thu</div>
+          <div class="cal-day-name">Fri</div>
+          <div class="cal-day-name">Sat</div>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
+
+      <!-- Day Detail Modal -->
+      <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+        <div class="modal-card" id="modalCard" onclick="event.stopPropagation()">
+          <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
+          <div class="modal-header">
+            <div class="modal-date-badge" id="modalDateBadge"></div>
+            <h3 class="modal-title" id="modalTitle">Readings for this Day</h3>
+          </div>
+          <div class="modal-body" id="modalBody"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== PAGE 3: ANALYTICS ====== -->
+    <section class="page" id="page-analytics">
+      <div class="page-header">
+        <div class="header-text">
+          <h1 class="page-title">Health Trends & Insights 📊</h1>
+          <p class="page-subtitle">A deeper look at the patterns shaping her heart health journey.</p>
+        </div>
+        <div class="analytics-toolbar">
+          <div class="timeframe-selector">
+            <label class="date-label" for="analyticsTimeframe">📅 Timeframe</label>
+            <select id="analyticsTimeframe" class="date-input" onchange="handleTimeframeChange()">
+              <option value="7">Last 7 Days</option>
+              <option value="14">Last 14 Days</option>
+              <option value="30" selected>Last 30 Days</option>
+              <option value="90">Last 90 Days</option>
+            </select>
+          </div>
+          <div class="date-focus-selector">
+            <label class="date-label" for="analyticsDatePicker">🎯 Highlight Date</label>
+            <div class="date-picker-wrap">
+              <input type="date" id="analyticsDatePicker" class="date-input" onchange="handleAnalyticsDatePick(this.value)" title="Select date to highlight across all charts" />
+              <button class="clear-focus-btn" id="clearHighlightBtn" onclick="selectDateHighlight(null)" title="Clear highlighted date" aria-label="Clear highlight">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Day Focus Detail Banner (Appears when a date is selected) -->
+      <div class="day-focus-banner" id="dayFocusBanner" style="display: none;">
+        <div class="day-focus-header">
+          <div class="day-focus-title-wrap">
+            <span class="day-focus-icon">🎯</span>
+            <div>
+              <div class="day-focus-label">Day Isolated Across Charts</div>
+              <h3 class="day-focus-date" id="dayFocusDateTitle">Monday, Oct 19, 2026</h3>
+            </div>
+            <span class="day-focus-count-badge" id="dayFocusCountBadge">3 readings</span>
+          </div>
+          <div class="day-focus-actions">
+            <button class="day-focus-action-btn edit-btn" onclick="jumpToDateLog()" title="Open this day in Daily Log">
+              📋 Edit in Daily Log
+            </button>
+            <button class="day-focus-action-btn clear-btn-small" onclick="selectDateHighlight(null)" title="Clear day highlight">
+              ✕ Clear Focus
+            </button>
+          </div>
+        </div>
+        <div class="day-focus-body" id="dayFocusBody"></div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary-cards" id="summaryCards">
+        <div class="summary-card sys-card">
+          <div class="summary-icon">🩸</div>
+          <div class="summary-label">Avg Systolic</div>
+          <div class="summary-value" id="avg-sys">—</div>
+          <div class="summary-unit">mmHg</div>
+          <div class="summary-tag" id="tag-sys"></div>
+        </div>
+        <div class="summary-card dia-card">
+          <div class="summary-icon">💧</div>
+          <div class="summary-label">Avg Diastolic</div>
+          <div class="summary-value" id="avg-dia">—</div>
+          <div class="summary-unit">mmHg</div>
+          <div class="summary-tag" id="tag-dia"></div>
+        </div>
+        <div class="summary-card pulse-card">
+          <div class="summary-icon">💓</div>
+          <div class="summary-label">Avg Heart Rate</div>
+          <div class="summary-value" id="avg-pulse">—</div>
+          <div class="summary-unit">BPM</div>
+          <div class="summary-tag" id="tag-pulse"></div>
+        </div>
+        <div class="summary-card days-card">
+          <div class="summary-icon">📆</div>
+          <div class="summary-label">Days Logged</div>
+          <div class="summary-value" id="days-logged">—</div>
+          <div class="summary-unit">days</div>
+          <div class="summary-tag" id="tag-days"></div>
+        </div>
+      </div>
+
+      <!-- Individual Charts -->
+      <div class="charts-section">
+        <h2 class="section-title">Individual Trend Lines</h2>
+        <div class="charts-trio">
+          <div class="chart-card" id="chartCard-sys">
+            <div class="chart-card-header">
+              <span class="chart-dot sys-dot"></span>
+              <h3 class="chart-title">Systolic Pressure</h3>
+              <span class="chart-unit-badge">mmHg</span>
+              <button class="chart-maximize-btn" onclick="openChartFullscreen('chartSys', 'Systolic Pressure', 'mmHg', 'sys')" aria-label="Maximize Systolic chart" title="Full screen">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="13,2 18,2 18,7"/><polyline points="7,18 2,18 2,13"/>
+                  <line x1="18" y1="2" x2="11" y2="9"/><line x1="2" y1="18" x2="9" y2="11"/>
+                </svg>
+              </button>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartSys" aria-label="Systolic pressure trend chart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card" id="chartCard-dia">
+            <div class="chart-card-header">
+              <span class="chart-dot dia-dot"></span>
+              <h3 class="chart-title">Diastolic Pressure</h3>
+              <span class="chart-unit-badge">mmHg</span>
+              <button class="chart-maximize-btn" onclick="openChartFullscreen('chartDia', 'Diastolic Pressure', 'mmHg', 'dia')" aria-label="Maximize Diastolic chart" title="Full screen">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="13,2 18,2 18,7"/><polyline points="7,18 2,18 2,13"/>
+                  <line x1="18" y1="2" x2="11" y2="9"/><line x1="2" y1="18" x2="9" y2="11"/>
+                </svg>
+              </button>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartDia" aria-label="Diastolic pressure trend chart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card" id="chartCard-pulse">
+            <div class="chart-card-header">
+              <span class="chart-dot pulse-dot"></span>
+              <h3 class="chart-title">Heart Rate</h3>
+              <span class="chart-unit-badge">BPM</span>
+              <button class="chart-maximize-btn" onclick="openChartFullscreen('chartPulse', 'Heart Rate', 'BPM', 'pulse')" aria-label="Maximize Heart Rate chart" title="Full screen">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="13,2 18,2 18,7"/><polyline points="7,18 2,18 2,13"/>
+                  <line x1="18" y1="2" x2="11" y2="9"/><line x1="2" y1="18" x2="9" y2="11"/>
+                </svg>
+              </button>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="chartPulse" aria-label="Heart rate trend chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Combined Chart -->
+      <div class="combined-chart-section">
+        <h2 class="section-title">Full Overview — All Metrics Together</h2>
+        <p class="section-sub">Compare systolic, diastolic, and pulse readings on a single timeline for a complete picture.</p>
+        <div class="chart-card combined-chart-card" id="chartCard-combined">
+          <div class="chart-card-header">
+            <span style="display:flex;gap:6px;align-items:center;">
+              <span class="chart-dot sys-dot"></span>
+              <span class="chart-dot dia-dot"></span>
+              <span class="chart-dot pulse-dot"></span>
+            </span>
+            <h3 class="chart-title" style="margin-left:4px;">All Metrics Combined</h3>
+            <button class="chart-maximize-btn" onclick="openChartFullscreen('chartCombined', 'All Metrics — Full Overview', '', 'combined')" aria-label="Maximize combined chart" title="Full screen">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="13,2 18,2 18,7"/><polyline points="7,18 2,18 2,13"/>
+                <line x1="18" y1="2" x2="11" y2="9"/><line x1="2" y1="18" x2="9" y2="11"/>
+              </svg>
+            </button>
+          </div>
+          <div class="chart-wrap combined-wrap">
+            <canvas id="chartCombined" aria-label="Combined blood pressure and pulse trend chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- No data placeholder -->
+      <div class="no-data-placeholder" id="noDataPlaceholder" style="display:none;">
+        <div class="no-data-icon">🌱</div>
+        <h3>No readings yet for this period</h3>
+        <p>Start logging daily readings and your analytics will bloom here.</p>
+        <button class="save-btn" style="max-width:260px;margin-top:1.5rem;" onclick="navigateTo('log')">➕ Log First Reading</button>
+      </div>
+    </section>
+
+    <!-- ====== PAGE 4: REPORT GENERATOR (PRESCRIPTION PAD VIEW) ====== -->
+    <section class="page" id="page-report">
+      <div class="page-header report-page-header">
+        <div class="header-text">
+          <h1 class="page-title">Doctor's Prescription & Shareable Receipt 🩺</h1>
+          <p class="page-subtitle">Replicating an authentic clinic prescription pad with embedded health trends, ready to export or print.</p>
+        </div>
+      </div>
+
+      <!-- Sub-Page Navigation Switch: Prescription Pad vs Billing Invoice -->
+      <div class="report-subnav-container">
+        <div class="report-subnav" role="tablist" aria-label="Document Type">
+          <button type="button" class="report-subnav-btn active" id="subtab-rx" onclick="switchReportSubPage('rx')" role="tab" aria-selected="true">
+            <span class="subnav-btn-icon">🩺</span>
+            <span class="subnav-btn-text">Prescription Pad</span>
+          </button>
+          <button type="button" class="report-subnav-btn" id="subtab-invoice" onclick="switchReportSubPage('invoice')" role="tab" aria-selected="false">
+            <span class="subnav-btn-icon">🧾</span>
+            <span class="subnav-btn-text">Billing Invoice</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Controls Panel 1: Prescription Pad Controls (Outside printable canvas) -->
+      <div class="report-controls-panel" id="rxControlsPanel">
+        <div class="report-controls-grid">
+          
+          <!-- 1. Custom Date Range Selector Module -->
+          <div class="report-ctrl-group date-range-ctrl-group">
+            <label class="ctrl-label">📅 Custom Date Range</label>
+            <div class="date-range-fields">
+              <div class="date-input-sub">
+                <span class="date-input-prefix">From:</span>
+                <input type="date" id="reportStartDate" class="date-input" onchange="handleCustomDateRangeChange()" />
+              </div>
+              <div class="date-input-sub">
+                <span class="date-input-prefix">To:</span>
+                <input type="date" id="reportEndDate" class="date-input" onchange="handleCustomDateRangeChange()" />
+              </div>
+            </div>
+            <div class="date-preset-pills">
+              <button type="button" class="preset-pill" id="pill7d" onclick="applyPresetRange(7)">7 Days</button>
+              <button type="button" class="preset-pill" id="pill14d" onclick="applyPresetRange(14)">14 Days</button>
+              <button type="button" class="preset-pill active" id="pill30d" onclick="applyPresetRange(30)">30 Days</button>
+              <button type="button" class="preset-pill" id="pill90d" onclick="applyPresetRange(90)">90 Days</button>
+              <button type="button" class="preset-pill" id="pillAll" onclick="applyPresetRange('all')">All Records</button>
+            </div>
+          </div>
+
+          <!-- 2. Data Display Toggle: Calculated Averages vs Individual Records -->
+          <div class="report-ctrl-group">
+            <label class="ctrl-label">📋 Data Display Mode</label>
+            <div class="data-display-mode-switch">
+              <button type="button" class="mode-switch-btn active" id="modeBtnAvg" onclick="setDataDisplayMode('averages')" title="Display aggregated mean values for Systolic, Diastolic, and Pulse">
+                <span class="mode-btn-icon">📊</span>
+                <span>Calculated Averages</span>
+              </button>
+              <button type="button" class="mode-switch-btn" id="modeBtnInd" onclick="setDataDisplayMode('individual')" title="List each time-stamped reading within the chosen date range">
+                <span class="mode-btn-icon">📝</span>
+                <span>Individual Records</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. Toggle switch: Include Visual Graphs -->
+          <div class="report-ctrl-group">
+            <label class="ctrl-label">📈 Visual Graph</label>
+            <label class="toggle-switch-wrap" for="toggleIncludeGraph" title="Toggle embedded trend line graph on receipt">
+              <input type="checkbox" id="toggleIncludeGraph" checked onchange="toggleReceiptGraph(this.checked)" />
+              <span class="toggle-switch-slider"></span>
+              <span class="toggle-switch-text">Include Visual Graphs</span>
+            </label>
+          </div>
+
+          <!-- 4. Linked Toggle switch: Status on Receipt -->
+          <div class="report-ctrl-group">
+            <label class="ctrl-label">🩺 Medical Assessment</label>
+            <label class="toggle-switch-wrap" for="reportClinicalToggle" title="Show or hide clinical status classification (Normal, Elevated, Hypertension) on receipt">
+              <input
+                type="checkbox"
+                id="reportClinicalToggle"
+                checked
+                onchange="toggleClinicalStatus(this.checked)"
+              />
+              <span class="toggle-switch-slider"></span>
+              <span class="toggle-switch-text">Status</span>
+            </label>
+          </div>
+
+          <!-- 5. Content Toggle & Action buttons -->
+          <div class="report-ctrl-actions">
+            <!-- Exact requested button: Remove Prescription & Lifestyle Recommendations -->
+            <button class="report-btn remove-rx-btn" id="toggleRxContentBtn" onclick="togglePrescriptionContent()" title="Remove or restore doctor recommendations from the prescription pad">
+              <span class="btn-icon" id="toggleRxIcon">🗑️</span>
+              <span id="toggleRxBtnText">Remove Prescription & Lifestyle Recommendations</span>
+            </button>
+
+            <button class="report-btn autofill-btn" onclick="autofillPrescriptionData()" title="Auto-fill patient info, date, and doctor recommendations from health records">
+              <span>🪄</span>
+              <span>Auto-Fill from Health Records</span>
+            </button>
+            <button class="report-btn download-btn" id="downloadImgBtn" onclick="downloadReceiptImage()" title="Capture exact prescription layout as high-res PNG image">
+              <span>📸</span>
+              <span>Download as Image (PNG)</span>
+            </button>
+            <button class="report-btn print-btn" onclick="printReceipt()" title="Print or save as PDF">
+              <span>🖨️</span>
+              <span>Print / PDF</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls Panel 2: Billing Invoice Configuration Panel (Outside printable canvas) -->
+      <div class="report-controls-panel invoice-controls-panel" id="invoiceControlsPanel" style="display: none;">
+        <div class="invoice-ctrl-grid">
+          
+          <!-- 1. Invoice Date -->
+          <div class="report-ctrl-group">
+            <label class="ctrl-label" for="invDateInput">📅 Invoice Date</label>
+            <input type="date" id="invDateInput" class="date-input" onchange="handleInvoiceConfigChange()" />
+          </div>
+
+          <!-- 2. Invoice Number -->
+          <div class="report-ctrl-group">
+            <label class="ctrl-label" for="invNumberInput">🧾 Invoice #</label>
+            <input type="text" id="invNumberInput" class="inv-config-input" value="INV-2026-0842" placeholder="INV-2026-0842" oninput="handleInvoiceConfigChange()" />
+          </div>
+
+          <!-- 3. Patient Name -->
+          <div class="report-ctrl-group">
+            <label class="ctrl-label" for="invPatientInput">👤 Patient Name</label>
+            <input type="text" id="invPatientInput" class="inv-config-input" value="Mom (Mrs. Gurmeet Kaur)" placeholder="Patient Name" oninput="handleInvoiceConfigChange()" />
+          </div>
+
+          <!-- 4. Patient Age -->
+          <div class="report-ctrl-group">
+            <label class="ctrl-label" for="invAgeInput">🎂 Age</label>
+            <input type="text" id="invAgeInput" class="inv-config-input age-input" value="64 Yrs" placeholder="e.g. 64 Yrs" oninput="handleInvoiceConfigChange()" />
+          </div>
+
+          <!-- 5. Payment Status -->
+          <div class="report-ctrl-group">
+            <label class="ctrl-label" for="invStatusSelect">💳 Payment Status</label>
+            <select id="invStatusSelect" class="inv-config-select" onchange="handleInvoiceConfigChange()">
+              <option value="PAID ✅" selected>PAID ✅</option>
+              <option value="PENDING ⏳">PENDING ⏳</option>
+              <option value="PARTIALLY PAID 🟡">PARTIALLY PAID 🟡</option>
+            </select>
+          </div>
+
+          <!-- 6. Tax Configuration: SGST (State Goods and Services Tax) -->
+          <div class="report-ctrl-group tax-ctrl-group">
+            <div class="total-ctrl-header">
+              <label class="ctrl-label" for="invSgstInput">🏛️ SGST (%)</label>
+              <span class="tax-amount-hint" id="invSgstCalculatedHint">₹ 0.00</span>
+            </div>
+            <div class="tax-input-wrap">
+              <input
+                type="number"
+                id="invSgstInput"
+                class="inv-config-input tax-input"
+                value="0"
+                min="0"
+                max="30"
+                step="0.5"
+                placeholder="0"
+                oninput="handleTaxConfigChange()"
+              />
+              <span class="tax-percent-suffix">%</span>
+            </div>
+            <div class="tax-preset-pills" id="sgstPillsContainer">
+              <button type="button" class="tax-pill active" id="sgstPill-0" onclick="setTaxPreset('sgst', 0)">0%</button>
+              <button type="button" class="tax-pill" id="sgstPill-2.5" onclick="setTaxPreset('sgst', 2.5)">2.5%</button>
+              <button type="button" class="tax-pill" id="sgstPill-6" onclick="setTaxPreset('sgst', 6)">6%</button>
+              <button type="button" class="tax-pill" id="sgstPill-9" onclick="setTaxPreset('sgst', 9)">9%</button>
+            </div>
+          </div>
+
+          <!-- 7. Tax Configuration: IGST (Integrated Goods and Services Tax) -->
+          <div class="report-ctrl-group tax-ctrl-group">
+            <div class="total-ctrl-header">
+              <label class="ctrl-label" for="invIgstInput">🌐 IGST (%)</label>
+              <span class="tax-amount-hint" id="invIgstCalculatedHint">₹ 0.00</span>
+            </div>
+            <div class="tax-input-wrap">
+              <input
+                type="number"
+                id="invIgstInput"
+                class="inv-config-input tax-input"
+                value="0"
+                min="0"
+                max="30"
+                step="0.5"
+                placeholder="0"
+                oninput="handleTaxConfigChange()"
+              />
+              <span class="tax-percent-suffix">%</span>
+            </div>
+            <div class="tax-preset-pills" id="igstPillsContainer">
+              <button type="button" class="tax-pill active" id="igstPill-0" onclick="setTaxPreset('igst', 0)">0%</button>
+              <button type="button" class="tax-pill" id="igstPill-5" onclick="setTaxPreset('igst', 5)">5%</button>
+              <button type="button" class="tax-pill" id="igstPill-12" onclick="setTaxPreset('igst', 12)">12%</button>
+              <button type="button" class="tax-pill" id="igstPill-18" onclick="setTaxPreset('igst', 18)">18%</button>
+            </div>
+          </div>
+
+          <!-- 8. Total Payment Amount Configuration -->
+          <div class="report-ctrl-group total-amount-ctrl-group">
+            <div class="total-ctrl-header">
+              <label class="ctrl-label" for="invTotalAmountInput">💰 Total Payment Amount (₹)</label>
+              <button type="button" class="ctrl-mini-btn" onclick="autoSumInvoiceItems()" title="Recalculate sum from itemized charges plus taxes">🔄 Auto-Sum</button>
+            </div>
+            <div class="input-with-currency">
+              <span class="currency-prefix">₹</span>
+              <input type="number" id="invTotalAmountInput" class="inv-config-input total-input" placeholder="1800" min="0" step="10" oninput="handleManualTotalAmountInput()" />
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Dynamic Itemized Charges Section -->
+        <div class="invoice-items-ctrl-section">
+          <div class="items-ctrl-header">
+            <div>
+              <h3 class="items-ctrl-title">📋 Itemized Medical Charges & Services</h3>
+              <p class="items-ctrl-sub">Dynamically add, remove, or customize charges. Amounts automatically reflect on the billing table.</p>
+            </div>
+            <button type="button" class="report-btn add-charge-btn" onclick="addNewChargeItem()" title="Add an itemized charge row">
+              <span>➕</span>
+              <span>Add Charge Item</span>
+            </button>
+          </div>
+
+          <!-- Dynamic List of Itemized Inputs -->
+          <div class="invoice-items-editor-grid" id="invoiceItemsEditorList">
+            <!-- Populated dynamically by renderInvoiceConfigItems() -->
+          </div>
+        </div>
+
+        <!-- Invoice Action Buttons -->
+        <div class="report-ctrl-actions invoice-ctrl-actions">
+          <button class="report-btn autofill-btn" onclick="autofillInvoiceData()" title="Sync Patient Name, Age, and latest BP Monitoring period into Invoice">
+            <span>🪄</span>
+            <span>Auto-Fill from Health Records</span>
+          </button>
+          <button class="report-btn download-btn" id="downloadInvoiceBtn" onclick="downloadReceiptImage()" title="Capture clean rectangular invoice as high-res PNG">
+            <span>📸</span>
+            <span>Download as Image (PNG)</span>
+          </button>
+          <button class="report-btn print-btn" onclick="printReceipt()" title="Print hospital invoice">
+            <span>🖨️</span>
+            <span>Print / PDF</span>
+          </button>
+          <button class="report-btn reset-inv-btn" onclick="resetInvoiceDefaults()" title="Reset to standard clinic consultation and monitoring charges">
+            <span>🔄</span>
+            <span>Reset Default Charges</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Prescription Pad Viewport -->
+      <div class="prescription-pad-viewport" id="rxPadViewport">
+        <div class="prescription-pad" id="prescriptionPad">
+          
+          <!-- Header Section matching 11.jpeg -->
+          <div class="rx-header">
+            <!-- Circular Logo Badge matching 11.jpeg -->
+            <div class="rx-logo-col">
+              <div class="rx-logo-badge" title="DR. GS - THE ULTIMATE HEALER">
+                <img src="assets/doctor_logo.png" alt="DR. GS - THE ULTIMATE HEALER" class="rx-logo-img" />
+              </div>
+            </div>
+
+            <!-- Clinic Title & Specialization -->
+            <div class="rx-clinic-info">
+              <h2 class="rx-clinic-name">GS CLINIC</h2>
+              <div class="rx-clinic-spec">SPECIALIZING IN BLOOD PRESSURE MONITORING</div>
+            </div>
+
+            <!-- Right-aligned Contact Details -->
+            <div class="rx-contact-info">
+              <div class="rx-contact-line">
+                <span class="rx-contact-icon">📞</span>
+                <span><strong>Phone:</strong> +91 9464360673</span>
+              </div>
+              <div class="rx-contact-line">
+                <span class="rx-contact-icon">📍</span>
+                <span><strong>Address:</strong> SCF 9-10, Phase 3,</span>
+              </div>
+              <div class="rx-contact-subline">Sarabha Nagar Ext, Ludhiana</div>
+            </div>
+          </div>
+
+          <!-- Solid horizontal blue divider line separating header from patient details -->
+          <div class="rx-header-divider"></div>
+
+          <!-- Patient Information Rows matching 11.jpeg with underlined blanks -->
+          <div class="rx-patient-section">
+            <div class="rx-patient-row">
+              <div class="rx-field-item flex-2">
+                <span class="rx-field-label">PATIENT:</span>
+                <input type="text" id="rxPatient" class="rx-field-input" value="Mom (Mrs. Gurmeet Kaur)" placeholder="" />
+              </div>
+              <div class="rx-field-item flex-1">
+                <span class="rx-field-label">AGE:</span>
+                <input type="text" id="rxAge" class="rx-field-input" value="64 Yrs" placeholder="" />
+              </div>
+              <div class="rx-field-item flex-1">
+                <span class="rx-field-label">DATE:</span>
+                <input type="text" id="rxDate" class="rx-field-input" value="" placeholder="" />
+              </div>
+            </div>
+            <div class="rx-diagnosis-row">
+              <span class="rx-field-label">DIAGNOSIS:</span>
+              <input type="text" id="rxDiagnosis" class="rx-field-input" value="Essential Hypertension (Mild Stage 1) — Routine Ambulatory Monitoring" placeholder="" />
+            </div>
+          </div>
+
+          <!-- Central Canvas / Body Area with faint grid and ruled notepad lines -->
+          <div class="rx-body" id="rxBody">
+            <!-- Embedded Miniature Trend Graph (Toggled via switch) -->
+            <div class="rx-graph-container" id="rxGraphContainer">
+              <div class="rx-graph-title-bar">
+                <span class="rx-graph-title">📈 CONSOLIDATED BLOOD PRESSURE & PULSE TIMELINE</span>
+                <div class="rx-graph-legend">
+                  <span class="rx-legend-pill pill-sys">Systolic (mmHg)</span>
+                  <span class="rx-legend-pill pill-dia">Diastolic (mmHg)</span>
+                  <span class="rx-legend-pill pill-pulse">Heart Rate (BPM)</span>
+                </div>
+              </div>
+              <div class="rx-graph-canvas-wrap">
+                <canvas id="receiptChartCanvas"></canvas>
+              </div>
+            </div>
+
+            <!-- Dynamic Data Display: Calculated Averages or Individual Records -->
+            <div class="rx-data-container" id="rxDataContainer">
+              <!-- Dynamically populated and aligned with 32px ruled lines -->
+            </div>
+
+            <!-- Doctor's Prescription & Lifestyle Recommendations Section -->
+            <div class="rx-recommendations-block" id="rxRecommendationsBlock">
+              <div class="rx-ruled-heading">PRESCRIPTION & LIFESTYLE RECOMMENDATIONS:</div>
+              <textarea id="rxNotes" class="rx-ruled-textarea" spellcheck="false" rows="5">1. Nutrition & Diet: Low sodium dietary intake (< 2g/day). Emphasize potassium-rich fresh fruits, steamed vegetables, and whole grains.
+2. Daily BP Logging: Continue logging readings 3 times daily (Morning before 10 AM, Afternoon 2-4 PM, Evening 8-9 PM).
+3. Physical Activity: 30 minutes light morning brisk walk; maintain daily hydration (2.0 - 2.5 Liters).
+4. Clinical Review: Sit resting for 5 mins prior to measurement. Return for clinic review if Systolic > 140 or Diastolic > 90 mmHg.</textarea>
+            </div>
+          </div>
+
+          <!-- Blue horizontal line separating body from footer -->
+          <div class="rx-footer-divider"></div>
+
+          <!-- Footer Section matching 11.jpeg -->
+          <div class="rx-footer">
+            <!-- Bottom Left: Red angled rectangular stamp graphic -->
+            <div class="rx-stamp-col">
+              <div class="rx-stamp-graphic" id="rxStampGraphic">
+                <div class="rx-stamp-text">STAY HEALTHY!</div>
+              </div>
+            </div>
+
+            <!-- Bottom Right: Exact handwritten signature and printed doctor credentials matching 11.jpeg -->
+            <div class="rx-signature-col">
+              <div class="rx-signature-wrap">
+                <img src="assets/gursimar_signature.png" alt="Gursimar" class="rx-signature-img" />
+              </div>
+              <div class="rx-signature-line"></div>
+              <div class="rx-doctor-name">Dr. Gursimar Singh</div>
+              <div class="rx-clinic-sub">GS Clinic, Ludhiana</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Billing Invoice Viewport (Outside the Printable Canvas) -->
+      <div class="billing-invoice-viewport" id="invoiceViewport" style="display: none;">
+        <!-- Clean, structured rectangular hospital invoice contrasting with ruled lines -->
+        <div class="billing-invoice-pad" id="billingInvoicePad">
+
+          <!-- 1. Corporate Billing Header -->
+          <div class="inv-header">
+            <div class="inv-brand-col">
+              <div class="inv-logo-wrap">
+                <img src="assets/doctor_logo.png" alt="GS Clinic Logo" class="inv-logo-img" />
+              </div>
+              <div class="inv-clinic-text">
+                <h2 class="inv-clinic-name">GS CLINIC</h2>
+                <div class="inv-clinic-sub">SPECIALIZING IN BLOOD PRESSURE MONITORING & CARDIOLOGY CARE</div>
+                <div class="inv-clinic-contact">
+                  <span>📍 SCF 9-10, Phase 3, Sarabha Nagar Ext, Ludhiana</span>
+                  <span>•</span>
+                  <span>📞 +91 9464360673</span>
+                </div>
+                <div class="inv-clinic-tax">Clinical Reg. No: PB/LDH/2026/GSC-4491 • GSTIN: 03AAGCS9464R1Z5</div>
+              </div>
+            </div>
+
+            <!-- Prominent INVOICE Title & Metadata Banner -->
+            <div class="inv-title-col">
+              <div class="inv-title-badge">INVOICE</div>
+              <div class="inv-meta-table">
+                <div class="inv-meta-line">
+                  <span class="inv-meta-lbl">INVOICE #:</span>
+                  <span class="inv-meta-val" id="invDisplayNumber">INV-2026-0842</span>
+                </div>
+                <div class="inv-meta-line">
+                  <span class="inv-meta-lbl">DATE ISSUED:</span>
+                  <span class="inv-meta-val" id="invDisplayIssueDate">22 Oct 2026</span>
+                </div>
+                <div class="inv-meta-line">
+                  <span class="inv-meta-lbl">STATUS:</span>
+                  <span class="inv-status-pill paid" id="invDisplayStatus">PAID ✅</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Solid Corporate Divider Bar -->
+          <div class="inv-header-divider"></div>
+
+          <!-- 2. Patient & Clinical Information Card (Clean rectangular grid layout) -->
+          <div class="inv-info-card">
+            <div class="inv-info-col">
+              <div class="inv-info-sec-title">BILL TO (PATIENT INFORMATION)</div>
+              <div class="inv-info-grid">
+                <div class="inv-info-row">
+                  <span class="inv-info-label">Patient Name:</span>
+                  <strong class="inv-info-value" id="invDisplayPatient">Mom (Mrs. Gurmeet Kaur)</strong>
+                </div>
+                <div class="inv-info-row">
+                  <span class="inv-info-label">Age / Gender:</span>
+                  <span class="inv-info-value" id="invDisplayAge">64 Yrs</span>
+                </div>
+                <div class="inv-info-row">
+                  <span class="inv-info-label">Patient UHID:</span>
+                  <span class="inv-info-value" id="invDisplayUhid">GSC-2026-9041</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="inv-info-col">
+              <div class="inv-info-sec-title">BILLING & CLINICAL DETAILS</div>
+              <div class="inv-info-grid">
+                <div class="inv-info-row">
+                  <span class="inv-info-label">Invoice Date:</span>
+                  <strong class="inv-info-value" id="invDisplayBillingDate">22 Oct 2026</strong>
+                </div>
+                <div class="inv-info-row">
+                  <span class="inv-info-label">Attending Doctor:</span>
+                  <span class="inv-info-value">Dr. Gursimar Singh (Chief Physician)</span>
+                </div>
+                <div class="inv-info-row">
+                  <span class="inv-info-label">Department:</span>
+                  <span class="inv-info-value">Cardiovascular Medicine & Ambulatory Care</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Grid-Based Billing Table with columns Description, Date, Amount -->
+          <div class="inv-table-wrap">
+            <table class="inv-table">
+              <thead>
+                <tr>
+                  <th class="inv-col-sr">#</th>
+                  <th class="inv-col-desc">DESCRIPTION</th>
+                  <th class="inv-col-date">DATE</th>
+                  <th class="inv-col-amount">AMOUNT (₹)</th>
+                </tr>
+              </thead>
+              <tbody id="invoiceTableBody">
+                <!-- Dynamically populated rows -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 4. Heavily Bolded, Right-Aligned Total Payment Footer -->
+          <div class="inv-total-section">
+            <div class="inv-total-breakdown">
+              <div class="inv-subtotal-row">
+                <span class="inv-breakdown-lbl">Itemized Subtotal:</span>
+                <span class="inv-breakdown-val" id="invDisplaySubtotal">₹ 1,800.00</span>
+              </div>
+              <div class="inv-subtotal-row inv-tax-row" id="invDisplaySgstRow">
+                <span class="inv-breakdown-lbl">SGST (<span id="invDisplaySgstRate">0%</span>):</span>
+                <span class="inv-breakdown-val" id="invDisplaySgst">₹ 0.00</span>
+              </div>
+              <div class="inv-subtotal-row inv-tax-row" id="invDisplayIgstRow">
+                <span class="inv-breakdown-lbl">IGST (<span id="invDisplayIgstRate">0%</span>):</span>
+                <span class="inv-breakdown-val" id="invDisplayIgst">₹ 0.00</span>
+              </div>
+              <div class="inv-subtotal-row inv-total-grand-row">
+                <span class="inv-grand-lbl">TOTAL AMOUNT DUE:</span>
+                <span class="inv-grand-val" id="invDisplayTotalDue">₹ 1,800.00</span>
+              </div>
+            </div>
+            <div class="inv-words-bar">
+              <span><strong>Amount in Words:</strong> <span id="invDisplayWords">INR One Thousand Eight Hundred Only</span></span>
+            </div>
+          </div>
+
+          <!-- 5. Hospital Notes, Clinic Stamp & Doctor Signature Footer -->
+          <div class="inv-footer">
+            <div class="inv-footer-notes">
+              <div class="inv-notes-title">TERMS & PATIENT NOTES:</div>
+              <ol class="inv-notes-list">
+                <li>This is an official medical receipt for outpatient consultation and blood pressure monitoring services.</li>
+                <li>Prescribed medication and lifestyle monitoring records are attached with patient prescription pad.</li>
+                <li>Emergency cardiovascular support & clinic helpline: +91 9464360673.</li>
+              </ol>
+              <div class="inv-stamp-badge">
+                <div class="inv-stamp-inner">
+                  <span>★ GS CLINIC ★</span>
+                  <strong>PAID & VERIFIED</strong>
+                  <span>LUDHIANA, PB</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="inv-footer-signature">
+              <div class="inv-sig-img-wrap">
+                <img src="assets/gursimar_signature.png" alt="Dr. Gursimar Singh" class="inv-sig-img" />
+              </div>
+              <div class="inv-sig-line"></div>
+              <div class="inv-sig-name">Dr. Gursimar Singh</div>
+              <div class="inv-sig-role">Authorized Signatory • GS Clinic</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================== CHART FULLSCREEN MODAL ===================== -->
+  <div class="modal-overlay" id="chartFsOverlay" onclick="closeChartFullscreen()">
+    <div class="chart-fs-card" id="chartFsCard" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="chartFsTitle">
+      <div class="chart-fs-header">
+        <div class="chart-fs-title-wrap">
+          <span class="chart-fs-dot" id="chartFsDot"></span>
+          <h2 class="chart-fs-title" id="chartFsTitle">Chart</h2>
+          <span class="chart-unit-badge" id="chartFsUnit" style="margin-left:0.5rem;"></span>
+        </div>
+        <!-- Metric switcher tabs -->
+        <div class="chart-fs-tabs" id="chartFsTabs" role="tablist">
+          <button class="chart-fs-tab active" id="fsTab-combined" onclick="switchFullscreenType('combined')" role="tab">All Metrics</button>
+          <button class="chart-fs-tab" id="fsTab-sys" onclick="switchFullscreenType('sys')" role="tab">Systolic</button>
+          <button class="chart-fs-tab" id="fsTab-dia" onclick="switchFullscreenType('dia')" role="tab">Diastolic</button>
+          <button class="chart-fs-tab" id="fsTab-pulse" onclick="switchFullscreenType('pulse')" role="tab">Heart Rate</button>
+        </div>
+        <div class="chart-fs-actions">
+          <button class="chart-fs-minimize" onclick="closeChartFullscreen()" aria-label="Minimize fullscreen" title="Minimize / Exit Full Screen">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4,14 10,14 10,20"/><polyline points="16,6 10,6 10,0"/>
+              <line x1="10" y1="14" x2="3" y2="21"/><line x1="10" y1="6" x2="17" y2="-1"/>
+            </svg>
+          </button>
+          <button class="chart-fs-close" onclick="closeChartFullscreen()" aria-label="Close fullscreen chart" title="Close (Esc)">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <!-- Fullscreen active date focus banner -->
+      <div class="chart-fs-focus-strip" id="chartFsFocusStrip" style="display: none;">
+        <span class="fs-focus-badge">🎯 Day Focus</span>
+        <span class="fs-focus-text" id="chartFsFocusText">Highlighting: Monday, Oct 19, 2026</span>
+        <button class="fs-focus-clear-btn" onclick="selectDateHighlight(null)" title="Clear highlight">✕ Clear Highlight</button>
+      </div>
+      <div class="chart-fs-body">
+        <canvas id="chartFullscreen" aria-label="Fullscreen chart view"></canvas>
+      </div>
+      <div class="chart-fs-hint">
+        <span>💡 <strong>Tip:</strong> Click any point on the chart to isolate that day's readings across all graphs</span>
+        <span>•</span>
+        <span>Press <kbd>Esc</kbd> or click outside to minimize</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CLEAR ALL CONFIRMATION MODAL ===================== -->
+  <div class="modal-overlay" id="clearModalOverlay" onclick="closeClearModal()">
+    <div class="clear-modal-card" id="clearModalCard" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="clearModalTitle">
+      <div class="clear-modal-icon">⚠️</div>
+      <h2 class="clear-modal-title" id="clearModalTitle">Wait a moment…</h2>
+      <p class="clear-modal-body">
+        Are you sure you want to erase <strong>all of Mom's health records</strong>?<br />
+        Every reading, every date, every trend — gone forever.
+        <br /><br />
+        <span class="clear-modal-note">This cannot be undone.</span>
+      </p>
+      <div class="clear-modal-confirm-wrap">
+        <label class="clear-confirm-label" for="deleteInput">Type <code>DELETE</code> to confirm:</label>
+        <input
+          type="text"
+          id="deleteInput"
+          class="delete-input"
+          placeholder="DELETE"
+          autocomplete="off"
+          spellcheck="false"
+          oninput="checkDeleteInput()"
+          aria-label="Type DELETE to confirm"
+        />
+      </div>
+      <div class="clear-modal-actions">
+        <button class="modal-cancel-btn" onclick="closeClearModal()">No, keep her records</button>
+        <button class="modal-destroy-btn" id="destroyBtn" onclick="executeCleanAll()" disabled aria-disabled="true">
+          🗑️ Yes, delete everything
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MOBILE QUICK ACTION BUTTON (FAB) & SPEED-DIAL ===================== -->
+  <!-- Soft Backdrop Blur Overlay -->
+  <div class="fab-backdrop" id="fabBackdrop" onclick="toggleFabMenu(false)" aria-hidden="true"></div>
+
+  <!-- FAB Container -->
+  <div class="fab-container" id="fabContainer">
+    <!-- Streamlined Speed-Dial Action Menu -->
+    <div class="fab-menu" id="fabMenu" role="menu" aria-label="Quick Actions Menu">
+      <!-- Shortcut 1: Quick Log -->
+      <button class="fab-action-btn fab-action-log" id="fabBtnLog" onclick="quickLogAction()" role="menuitem" aria-label="Quick Log: Focus current time entry">
+        <span class="fab-action-label">Quick Log <small>Focus current check-in</small></span>
+        <span class="fab-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+        </span>
+      </button>
+
+      <!-- Shortcut 2: View Trends -->
+      <button class="fab-action-btn fab-action-trends" id="fabBtnTrends" onclick="quickViewTrendsAction()" role="menuitem" aria-label="View Trends: Health Analytics">
+        <span class="fab-action-label">View Trends <small>Charts & analytics</small></span>
+        <span class="fab-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </span>
+      </button>
+
+      <!-- Shortcut 3: Create Receipt -->
+      <button class="fab-action-btn fab-action-receipt" id="fabBtnReceipt" onclick="quickCreateReceiptAction()" role="menuitem" aria-label="Create Receipt: Report Generator">
+        <span class="fab-action-label">Create Receipt <small>Dr. GS Clinic Rx Pad</small></span>
+        <span class="fab-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </span>
+      </button>
+    </div>
+
+    <!-- Main Floating Action Button (FAB) -->
+    <button class="fab-main-btn" id="fabMainBtn" onclick="toggleFabMenu()" aria-haspopup="true" aria-expanded="false" aria-label="Toggle Quick Actions Menu" title="Quick Actions">
+      <span class="fab-icon fab-icon-default" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+      </span>
+      <span class="fab-icon fab-icon-close" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </span>
+    </button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
