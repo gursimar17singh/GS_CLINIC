@@ -30,6 +30,13 @@ const BP_THRESHOLDS = {
 let chartInstances = {};
 let receiptChartInstance = null;
 
+// Global Chart.js performance defaults (debounced canvas resizing, prevent UI lag)
+if (typeof Chart !== 'undefined') {
+  Chart.defaults.responsive = true;
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.resizeDelay = 200; // Built-in debounce for chart canvas resizing
+}
+
 // Current calendar month/year
 let calYear, calMonth;
 
@@ -156,6 +163,7 @@ function saveReadings() {
   if (!all[dateKey]) all[dateKey] = {};
 
   let saved = 0;
+  let deleted = 0;
 
   const fields = {
     morning:   { prefix: 'morn' },
@@ -165,26 +173,63 @@ function saveReadings() {
 
   SLOTS.forEach(slot => {
     const { prefix } = fields[slot];
-    const sys   = parseFloat(document.getElementById(`${prefix}-sys`).value);
-    const dia   = parseFloat(document.getElementById(`${prefix}-dia`).value);
-    const pulse = parseFloat(document.getElementById(`${prefix}-pulse`).value);
-    const time  = document.getElementById(`${prefix}-time`).value;
+    const sysVal   = document.getElementById(`${prefix}-sys`).value.trim();
+    const diaVal   = document.getElementById(`${prefix}-dia`).value.trim();
+    const pulseVal = document.getElementById(`${prefix}-pulse`).value.trim();
+    const timeVal  = document.getElementById(`${prefix}-time`).value.trim();
+
+    const sys   = parseFloat(sysVal);
+    const dia   = parseFloat(diaVal);
+    const pulse = parseFloat(pulseVal);
+    const time  = timeVal || SLOT_CONFIG[slot].defaultTime;
 
     if (!isNaN(sys) && !isNaN(dia)) {
       all[dateKey][slot] = { sys, dia, pulse: isNaN(pulse) ? null : pulse, time };
       saved++;
+    } else {
+      if (all[dateKey] && all[dateKey][slot]) {
+        delete all[dateKey][slot];
+        deleted++;
+      }
     }
   });
 
-  if (saved === 0) {
+  if (saved === 0 && deleted === 0) {
     showToast('⚠️ Please fill in at least one reading.', 'error');
     return;
+  }
+
+  if (Object.keys(all[dateKey]).length === 0) {
+    delete all[dateKey];
   }
 
   saveAll(all);
   SLOTS.forEach(slot => { updateStatusBadge(slot); updateDot(slot); });
   animateSaveBtn();
-  showToast(`✅ ${saved} reading${saved > 1 ? 's' : ''} saved for ${formatDisplayDate(dateKey)}!`, 'success');
+
+  if (saved > 0) {
+    showToast(`✅ ${saved} reading${saved > 1 ? 's' : ''} saved for ${formatDisplayDate(dateKey)}!`, 'success');
+  } else if (deleted > 0) {
+    showToast(`🗑️ Reading cleared for ${formatDisplayDate(dateKey)}.`, 'info');
+  }
+
+  // Performance: Only update graphs/DOM when officially saved or deleted, and only if view is active
+  if (document.getElementById('page-analytics')?.classList.contains('active')) {
+    renderAnalytics();
+  }
+  if (chartFsInstance && currentFullscreenType) {
+    switchFullscreenType(currentFullscreenType);
+  }
+  if (document.getElementById('page-calendar')?.classList.contains('active')) {
+    renderCalendar();
+  }
+  if (document.getElementById('page-report')?.classList.contains('active')) {
+    if (typeof reportActiveSubPage !== 'undefined' && reportActiveSubPage === 'invoice') {
+      if (typeof renderBillingInvoice === 'function') renderBillingInvoice();
+    } else {
+      renderReportPad();
+    }
+  }
 }
 
 function animateSaveBtn() {
@@ -441,7 +486,16 @@ function renderAnalytics() {
     document.getElementById('summaryCards').style.opacity = '0.3';
     ['chartSys','chartDia','chartPulse','chartCombined'].forEach(id => {
       const c = document.getElementById(id);
-      if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+      if (chartInstances[id]) {
+        try { chartInstances[id].destroy(); } catch (e) {}
+        delete chartInstances[id];
+      }
+      if (c && typeof Chart !== 'undefined') {
+        const existing = Chart.getChart(c);
+        if (existing) {
+          try { existing.destroy(); } catch (e) {}
+        }
+      }
     });
     updateSummaryCards([], []);
     return;
@@ -918,6 +972,7 @@ function renderCharts(points) {
   const baseChartOptions = (unit, metricType) => ({
     responsive: true,
     maintainAspectRatio: false,
+    resizeDelay: 200,
     animation: { duration: 700, easing: 'easeInOutQuart' },
     interaction: { mode: 'index', intersect: false },
     onClick: handleChartClick,
@@ -1120,11 +1175,15 @@ function renderCharts(points) {
 function buildChart(id, labels, datasetsFn, options, points, metricType) {
   const canvas = document.getElementById(id);
   if (!canvas) return;
-  const existingChart = Chart.getChart(canvas);
-  if (existingChart) existingChart.destroy();
   if (chartInstances[id]) {
-    chartInstances[id].destroy();
+    try { chartInstances[id].destroy(); } catch (e) {}
     delete chartInstances[id];
+  }
+  if (typeof Chart !== 'undefined') {
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) {
+      try { existingChart.destroy(); } catch (e) {}
+    }
   }
   const ctx = canvas.getContext('2d');
   const datasets = typeof datasetsFn === 'function' ? datasetsFn(ctx) : datasetsFn;
@@ -1332,6 +1391,7 @@ function buildFullscreenChart(sourceId, type, unit) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      resizeDelay: 200,
       animation: { duration: 500, easing: 'easeInOutQuart' },
       interaction: { mode: 'index', intersect: false },
       onClick: handleChartClick,
@@ -1417,12 +1477,15 @@ function closeChartFullscreen() {
   if (overlay) overlay.classList.remove('open');
   document.body.style.overflow = '';
   if (chartFsInstance) {
-    setTimeout(() => {
-      if (chartFsInstance) {
-        chartFsInstance.destroy();
-        chartFsInstance = null;
-      }
-    }, 350);
+    try { chartFsInstance.destroy(); } catch (e) {}
+    chartFsInstance = null;
+  }
+  const canvas = document.getElementById('chartFullscreen');
+  if (canvas && typeof Chart !== 'undefined') {
+    const existing = Chart.getChart(canvas);
+    if (existing) {
+      try { existing.destroy(); } catch (e) {}
+    }
   }
 }
 
@@ -1575,11 +1638,43 @@ function executeCleanAll() {
   localStorage.removeItem(STORAGE_KEY);
 
   // Clear chart instances & active highlight
-  Object.values(chartInstances).forEach(c => { if (c) c.destroy(); });
+  Object.keys(chartInstances).forEach(id => {
+    if (chartInstances[id]) {
+      try { chartInstances[id].destroy(); } catch (e) {}
+      delete chartInstances[id];
+    }
+    const canvas = document.getElementById(id);
+    if (canvas && typeof Chart !== 'undefined') {
+      const existing = Chart.getChart(canvas);
+      if (existing) {
+        try { existing.destroy(); } catch (e) {}
+      }
+    }
+  });
   chartInstances = {};
+
   if (receiptChartInstance) {
-    receiptChartInstance.destroy();
+    try { receiptChartInstance.destroy(); } catch (e) {}
     receiptChartInstance = null;
+  }
+  const rxCanvas = document.getElementById('receiptChartCanvas');
+  if (rxCanvas && typeof Chart !== 'undefined') {
+    const existing = Chart.getChart(rxCanvas);
+    if (existing) {
+      try { existing.destroy(); } catch (e) {}
+    }
+  }
+
+  if (chartFsInstance) {
+    try { chartFsInstance.destroy(); } catch (e) {}
+    chartFsInstance = null;
+  }
+  const fsCanvas = document.getElementById('chartFullscreen');
+  if (fsCanvas && typeof Chart !== 'undefined') {
+    const existing = Chart.getChart(fsCanvas);
+    if (existing) {
+      try { existing.destroy(); } catch (e) {}
+    }
   }
   currentSelectedDateKey = null;
   const picker = document.getElementById('analyticsDatePicker');
@@ -2063,6 +2158,7 @@ function renderReceiptChart(points) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      resizeDelay: 200,
       animation: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
@@ -2869,27 +2965,25 @@ function refreshAppData() {
     ic.classList.add('spinning');
   });
 
-  // 1. Soft reload Daily Log inputs and state
-  loadLogForDate();
+  const activePage = document.querySelector('.page.active')?.id || 'page-log';
 
-  // 2. Soft reload Calendar Overview
-  renderCalendar();
-
-  // 3. Soft reload Analytical Insights
-  const activePage = document.querySelector('.page.active')?.id;
-  if (activePage === 'page-analytics') {
+  // Lazy Loading & Performance: Only refresh data for the currently active tab
+  if (activePage === 'page-log') {
+    loadLogForDate();
+  } else if (activePage === 'page-calendar') {
+    renderCalendar();
+  } else if (activePage === 'page-analytics') {
     renderAnalytics();
+  } else if (activePage === 'page-report') {
+    if (typeof reportActiveSubPage !== 'undefined' && reportActiveSubPage === 'invoice') {
+      renderBillingInvoice();
+    } else {
+      renderReportPad();
+    }
   }
 
-  // 4. Soft reload Report Generator / Rx Receipt Pad or Billing Invoice
-  if (typeof reportActiveSubPage !== 'undefined' && reportActiveSubPage === 'invoice') {
-    renderBillingInvoice();
-  } else {
-    renderReportPad();
-  }
-
-  // 5. Update Fullscreen chart if open
-  if (typeof chartFsInstance !== 'undefined' && chartFsInstance && typeof currentFullscreenType !== 'undefined' && currentFullscreenType) {
+  // Update Fullscreen chart if open
+  if (chartFsInstance && currentFullscreenType) {
     switchFullscreenType(currentFullscreenType);
   }
 
@@ -2897,7 +2991,7 @@ function refreshAppData() {
     icons.forEach(ic => ic.classList.remove('spinning'));
   }, 750);
 
-  showToast('🔄 Application records refreshed smoothly!', 'success');
+  showToast('🔄 Application records refreshed from local storage!', 'success');
 }
 
 // ================================================
@@ -3106,8 +3200,14 @@ function toggleClinicalStatus(visible) {
     switchFullscreenType(currentFullscreenType);
   }
 
-  // 3. Re-render Prescription Pad on Report Generator
-  renderReportPad();
+  // 3. Re-render Prescription Pad on Report Generator if currently active
+  if (document.getElementById('page-report')?.classList.contains('active')) {
+    if (typeof reportActiveSubPage !== 'undefined' && reportActiveSubPage === 'invoice') {
+      if (typeof renderBillingInvoice === 'function') renderBillingInvoice();
+    } else {
+      renderReportPad();
+    }
+  }
 
   showToast(
     isClinicalStatusVisible
@@ -3131,3 +3231,32 @@ window.toggleClinicalStatus = toggleClinicalStatus;
 window.syncClinicalStatusToggles = syncClinicalStatusToggles;
 
 
+// ================================================
+//  WINDOW RESIZE DEBOUNCING (SMOOTH GRAPH SCALING)
+// ================================================
+function debounce(fn, wait = 180) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+
+const handleWindowResize = debounce(() => {
+  // Only resize active charts smoothly if the user is on Analytics or Report page or fullscreen
+  if (document.getElementById('page-analytics')?.classList.contains('active')) {
+    Object.values(chartInstances).forEach(chart => {
+      if (chart && typeof chart.resize === 'function') {
+        try { chart.resize(); } catch (e) {}
+      }
+    });
+  }
+  if (chartFsInstance && typeof chartFsInstance.resize === 'function') {
+    try { chartFsInstance.resize(); } catch (e) {}
+  }
+  if (receiptChartInstance && typeof receiptChartInstance.resize === 'function' && document.getElementById('page-report')?.classList.contains('active')) {
+    try { receiptChartInstance.resize(); } catch (e) {}
+  }
+}, 180);
+
+window.addEventListener('resize', handleWindowResize, { passive: true });
