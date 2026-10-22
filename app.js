@@ -3640,13 +3640,15 @@ let isMobileModeActive = localStorage.getItem('heartmate_mobile_mode') === 'true
 
 function initMobileMode() {
   if (isMobileModeActive) {
-    document.body.classList.add('mobile-mode-active');
+    document.body.classList.add('mobile-mode-active', 'force-mobile');
     const btn = document.getElementById('mobileModeToggleBtn');
     if (btn) {
       btn.classList.add('active');
       const textEl = btn.querySelector('.mobile-mode-text');
       if (textEl) textEl.textContent = 'Mobile Active';
     }
+  } else {
+    document.body.classList.remove('mobile-mode-active', 'force-mobile');
   }
   const badge = document.getElementById('mobileModeStatusBadge');
   if (badge) badge.textContent = isMobileModeActive ? 'On' : 'Off';
@@ -3658,6 +3660,7 @@ function toggleMobileMode(forcedState) {
   localStorage.setItem('heartmate_mobile_mode', isMobileModeActive ? 'true' : 'false');
 
   document.body.classList.toggle('mobile-mode-active', isMobileModeActive);
+  document.body.classList.toggle('force-mobile', isMobileModeActive);
 
   const btn = document.getElementById('mobileModeToggleBtn');
   if (btn) {

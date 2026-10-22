@@ -2136,24 +2136,142 @@ body {
   .combined-wrap { height: 260px; }
 }
 
+/* ================================================
+   MOBILE & RESPONSIVE LAYOUT (<= 768px & .force-mobile)
+   ================================================ */
 @media (max-width: 768px) {
-  .main-content { padding: 1rem; }
-  .nav-tabs { display: none; }
-  .clear-btn-text { display: none; }
-  .clear-btn { padding: 0.5rem 0.7rem; }
-  .settings-btn-label { display: none; }
-  .settings-menu-btn { padding: 0.5rem 0.65rem; }
+  body {
+    padding-bottom: 76px !important;
+  }
 
+  .main-content {
+    padding: 1rem 0.75rem 5rem 0.75rem !important;
+  }
+
+  /* Hide top desktop nav tabs */
+  .nav-tabs {
+    display: none !important;
+  }
+
+  .settings-btn-label {
+    display: none;
+  }
+
+  .settings-menu-btn {
+    padding: 0.5rem 0.65rem;
+    min-width: 40px;
+    justify-content: center;
+  }
+
+  /* Fixed Bottom Tab Bar: visible on <=768px screens */
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 64px !important;
+    background: rgba(28, 37, 57, 0.96) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 1.5px solid rgba(98, 207, 238, 0.18) !important;
+    box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.6) !important;
+    z-index: 9990 !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    padding: 0 0.5rem !important;
+    box-sizing: border-box !important;
+  }
+
+  [data-theme="light"] .mobile-bottom-nav {
+    background: rgba(255, 255, 255, 0.96) !important;
+    border-top-color: rgba(126, 200, 227, 0.28) !important;
+    box-shadow: 0 -4px 20px rgba(74, 172, 218, 0.14) !important;
+  }
+
+  .bottom-tab-btn {
+    background: transparent !important;
+    border: none !important;
+    color: #8499BE !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    cursor: pointer !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+  }
+
+  [data-theme="light"] .bottom-tab-btn {
+    color: var(--text-soft) !important;
+  }
+
+  .bottom-tab-btn.active {
+    color: var(--blue-400) !important;
+    font-weight: 900 !important;
+  }
+
+  [data-theme="light"] .bottom-tab-btn.active {
+    color: var(--blue-500) !important;
+  }
+
+  /* Dropdown Menu Positioning: Anchor to top right with proper dark card background */
+  .settings-dropdown-menu {
+    position: absolute !important;
+    top: calc(100% + 8px) !important;
+    right: 0 !important;
+    width: 250px !important;
+    background: var(--surface) !important;
+    border: 1.5px solid rgba(98, 207, 238, 0.2) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65) !important;
+    z-index: 9999 !important;
+    padding: 0.5rem !important;
+  }
+
+  [data-theme="light"] .settings-dropdown-menu {
+    background: var(--surface) !important;
+    border-color: rgba(126, 200, 227, 0.3) !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16) !important;
+  }
+
+  /* Layout grids on mobile */
   .reading-cards-grid { grid-template-columns: 1fr; }
   .input-row { grid-template-columns: 1fr 1fr; }
-
   .summary-cards { grid-template-columns: repeat(2, 1fr); }
   .page-header { flex-direction: column; }
-  .page-title { font-size: 1.5rem; }
+  .page-title { font-size: 1.35rem; }
 
-  .calendar-container { padding: 1rem; }
+  .calendar-container { padding: 0.75rem; }
   .cal-day { min-height: 44px; }
   .cal-day-num { font-size: 0.82rem; }
+
+  /* Mobile More Sheet Drawer: overlay positioning and hide lengthy text descriptions */
+  .more-sheet-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(10, 14, 23, 0.75) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    z-index: 10000 !important;
+  }
+
+  .more-sheet-drawer {
+    background: var(--surface) !important;
+    border-top: 1.5px solid rgba(98, 207, 238, 0.25) !important;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.7) !important;
+  }
+
+  .more-sheet-item-desc {
+    display: none !important; /* Hide text-heavy descriptions on mobile */
+  }
+
+  .more-sheet-item-title {
+    font-size: 0.86rem !important;
+  }
 }
 
 @media (max-width: 480px) {
@@ -5040,7 +5158,8 @@ body {
 /* ==========================================================================
    MOBILE MODE ACTIVE STYLES (App-like Streamlined Layout)
    ========================================================================== */
-body.mobile-mode-active {
+body.mobile-mode-active,
+body.force-mobile {
   max-width: 520px !important;
   margin: 0 auto !important;
   min-height: 100vh;
@@ -5051,69 +5170,84 @@ body.mobile-mode-active {
   background: var(--bg);
 }
 
-[data-theme="dark"] body.mobile-mode-active {
+[data-theme="dark"] body.mobile-mode-active,
+[data-theme="dark"] body.force-mobile {
   border-color: rgba(98, 207, 238, 0.2);
   box-shadow: 0 0 70px rgba(0, 0, 0, 0.7);
 }
 
-body.mobile-mode-active .navbar {
+body.mobile-mode-active .navbar,
+body.force-mobile .navbar {
   padding: 0 1rem;
   height: 64px;
 }
 
 /* Hide global top nav tabs in Mobile Mode */
-body.mobile-mode-active .nav-tabs {
+body.mobile-mode-active .nav-tabs,
+body.force-mobile .nav-tabs {
   display: none !important;
 }
 
 /* Hide header status toggle to keep header uncluttered */
-body.mobile-mode-active .nav-status-toggle-wrap {
+body.mobile-mode-active .nav-status-toggle-wrap,
+body.force-mobile .nav-status-toggle-wrap {
   display: none !important;
 }
 
 /* Hide hamburger menu button in mobile mode since bottom bar handles it */
-body.mobile-mode-active .nav-menu-btn {
+body.mobile-mode-active .nav-menu-btn,
+body.force-mobile .nav-menu-btn {
   display: none !important;
 }
 
 /* Hide FAB in Mobile Mode to prevent collision with bottom bar */
 body.mobile-mode-active .fab-container,
-body.mobile-mode-active .fab-backdrop {
+body.mobile-mode-active .fab-backdrop,
+body.force-mobile .fab-container,
+body.force-mobile .fab-backdrop {
   display: none !important;
 }
 
 /* Reserve space for fixed bottom bar */
-body.mobile-mode-active .main-content {
+body.mobile-mode-active .main-content,
+body.force-mobile .main-content {
   padding-bottom: 96px !important;
   padding-left: 0.75rem;
   padding-right: 0.75rem;
 }
 
 /* Maximized Daily Log Real Estate in Mobile Mode */
-body.mobile-mode-active #page-log .page-header {
+body.mobile-mode-active #page-log .page-header,
+body.force-mobile #page-log .page-header {
   margin-bottom: 0.75rem;
   padding: 0.25rem 0;
 }
-body.mobile-mode-active #page-log .page-title {
+body.mobile-mode-active #page-log .page-title,
+body.force-mobile #page-log .page-title {
   font-size: 1.35rem;
 }
-body.mobile-mode-active #page-log .page-subtitle {
+body.mobile-mode-active #page-log .page-subtitle,
+body.force-mobile #page-log .page-subtitle {
   font-size: 0.82rem;
   margin-top: 0.15rem;
 }
-body.mobile-mode-active #page-log .reading-card {
+body.mobile-mode-active #page-log .reading-card,
+body.force-mobile #page-log .reading-card {
   padding: 0.95rem 1rem;
   border-radius: var(--radius-md);
   margin-bottom: 0.75rem;
 }
-body.mobile-mode-active #page-log .input-row {
+body.mobile-mode-active #page-log .input-row,
+body.force-mobile #page-log .input-row {
   gap: 0.5rem;
 }
-body.mobile-mode-active #page-log .input-with-unit input {
+body.mobile-mode-active #page-log .input-with-unit input,
+body.force-mobile #page-log .input-with-unit input {
   height: 48px;
   font-size: 1.15rem;
 }
-body.mobile-mode-active #page-log .save-btn {
+body.mobile-mode-active #page-log .save-btn,
+body.force-mobile #page-log .save-btn {
   height: 52px;
   font-size: 1.05rem;
   border-radius: var(--radius-lg);
@@ -5121,22 +5255,27 @@ body.mobile-mode-active #page-log .save-btn {
 }
 
 /* Maximized Calendar in Mobile Mode */
-body.mobile-mode-active #page-calendar .page-header {
+body.mobile-mode-active #page-calendar .page-header,
+body.force-mobile #page-calendar .page-header {
   margin-bottom: 0.75rem;
 }
-body.mobile-mode-active #page-calendar .page-title {
+body.mobile-mode-active #page-calendar .page-title,
+body.force-mobile #page-calendar .page-title {
   font-size: 1.35rem;
 }
-body.mobile-mode-active #page-calendar .calendar-container {
+body.mobile-mode-active #page-calendar .calendar-container,
+body.force-mobile #page-calendar .calendar-container {
   padding: 0.75rem;
   border-radius: var(--radius-md);
 }
-body.mobile-mode-active #page-calendar .cal-day {
+body.mobile-mode-active #page-calendar .cal-day,
+body.force-mobile #page-calendar .cal-day {
   min-height: 48px;
   border-radius: 8px;
   padding: 0.25rem;
 }
-body.mobile-mode-active #page-calendar .cal-day-num {
+body.mobile-mode-active #page-calendar .cal-day-num,
+body.force-mobile #page-calendar .cal-day-num {
   font-size: 0.85rem;
 }
 
@@ -5150,19 +5289,20 @@ body.mobile-mode-active #page-calendar .cal-day-num {
   left: 0;
   right: 0;
   height: 68px;
-  z-index: 1500;
-  background: rgba(255, 255, 255, 0.95);
+  z-index: 9990;
+  background: rgba(28, 37, 57, 0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-top: 1.5px solid rgba(126, 200, 227, 0.22);
-  box-shadow: 0 -4px 20px rgba(74, 172, 218, 0.12);
+  border-top: 1.5px solid rgba(98, 207, 238, 0.18);
+  box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.6);
   align-items: center;
   justify-content: space-around;
   padding: 0 0.5rem;
   transition: var(--theme-transition);
 }
 
-body.mobile-mode-active .mobile-bottom-nav {
+body.mobile-mode-active .mobile-bottom-nav,
+body.force-mobile .mobile-bottom-nav {
   display: flex !important;
   max-width: 520px;
   margin: 0 auto;
