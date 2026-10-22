@@ -55,62 +55,98 @@
       </button>
     </div>
     <div class="nav-actions">
-      <!-- Global Status Toggle Switch -->
-      <div class="nav-status-toggle-wrap" title="Toggle status classification (Normal, Elevated, Hypertension)">
-        <label class="nav-status-toggle" for="globalClinicalToggle">
-          <span class="nav-status-icon">🩺</span>
-          <span class="nav-status-text">Status</span>
-          <span class="nav-switch">
-            <input
-              type="checkbox"
-              id="globalClinicalToggle"
-              checked
-              onchange="toggleClinicalStatus(this.checked)"
-              aria-label="Status"
-            />
-            <span class="nav-switch-slider"></span>
-          </span>
-        </label>
+      <!-- Settings / More Options Dropdown Anchor -->
+      <div class="settings-dropdown-wrap" id="settingsDropdownWrap">
+        <button type="button" class="settings-menu-btn" id="settingsMenuBtn" onclick="toggleSettingsDropdown(event)" aria-label="Settings and Options" aria-haspopup="true" aria-expanded="false" title="Settings & Utilities">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="settings-menu-icon" aria-hidden="true">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+          <span class="settings-btn-label">Settings</span>
+        </button>
+
+        <!-- Dropdown Menu Content -->
+        <div class="settings-dropdown-menu" id="settingsDropdownMenu" role="menu" aria-label="Settings and Utilities">
+          <!-- 1. Clinical Status Toggle -->
+          <div class="settings-dropdown-item toggle-item" role="menuitem">
+            <div class="settings-item-label">
+              <span class="settings-item-icon">🩺</span>
+              <span class="settings-item-text">Clinical Status</span>
+            </div>
+            <label class="nav-switch" for="globalClinicalToggle">
+              <input
+                type="checkbox"
+                id="globalClinicalToggle"
+                checked
+                onchange="toggleClinicalStatus(this.checked)"
+                aria-label="Clinical Status"
+              />
+              <span class="nav-switch-slider"></span>
+            </label>
+          </div>
+
+          <!-- 2. Mobile View Toggle -->
+          <button class="settings-dropdown-item" id="mobileModeToggleBtn" onclick="toggleMobileMode(); closeSettingsDropdown();" role="menuitem">
+            <div class="settings-item-label">
+              <span class="settings-item-icon">📱</span>
+              <span class="settings-item-text mobile-mode-text">Mobile View</span>
+            </div>
+            <span class="settings-item-badge" id="mobileModeStatusBadge">Off</span>
+          </button>
+
+          <!-- 3. QR Sync Hub -->
+          <button class="settings-dropdown-item" id="navSyncBtn" onclick="openSyncHubModal(); closeSettingsDropdown();" role="menuitem">
+            <div class="settings-item-label">
+              <span class="settings-item-icon">📲</span>
+              <span class="settings-item-text">QR Sync Hub</span>
+            </div>
+            <span class="settings-item-hint">Export / Scan</span>
+          </button>
+
+          <!-- 4. Refresh Data -->
+          <button class="settings-dropdown-item" id="refreshBtn" onclick="refreshAppData(); closeSettingsDropdown();" role="menuitem">
+            <div class="settings-item-label">
+              <span class="settings-item-icon refresh-icon">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                </svg>
+              </span>
+              <span class="settings-item-text">Refresh Data</span>
+            </div>
+          </button>
+
+          <!-- 5. Dark Mode Toggle -->
+          <button class="settings-dropdown-item" id="themeToggle" onclick="toggleTheme()" role="menuitem">
+            <div class="settings-item-label">
+              <span class="settings-item-icon theme-icon-dynamic">🌓</span>
+              <span class="settings-item-text" id="themeItemText">Toggle Dark Mode</span>
+            </div>
+            <span class="settings-item-badge" id="themeStatusBadge">Auto</span>
+          </button>
+
+          <div class="settings-dropdown-divider"></div>
+
+          <!-- 6. Clear All Dustbin -->
+          <button class="settings-dropdown-item item-danger" id="clearBtn" onclick="openClearModal(); closeSettingsDropdown();" role="menuitem">
+            <div class="settings-item-label">
+              <span class="settings-item-icon trash-icon">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </span>
+              <span class="settings-item-text">Clear All Records</span>
+            </div>
+          </button>
+        </div>
       </div>
-      <!-- Refresh Data Button -->
-      <button class="refresh-btn" id="refreshBtn" onclick="refreshAppData()" aria-label="Refresh Data" title="Refresh health records">
-        <span class="refresh-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
-          </svg>
-        </span>
-        <span class="refresh-btn-text">Refresh</span>
-      </button>
-      <!-- Dark Mode Toggle -->
-      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle dark mode" title="Toggle dark/light mode">
-        <span class="theme-icon sun-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </svg>
-        </span>
-        <span class="theme-icon moon-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </span>
-      </button>
-      <!-- Clear All Records -->
-      <button class="clear-btn" id="clearBtn" onclick="openClearModal()" aria-label="Clear all records" title="Clear all health records">
-        <span>🗑️</span>
-        <span class="clear-btn-text">Clear All</span>
-      </button>
-      <!-- Mobile hamburger -->
-      <button class="nav-menu-btn" id="menuToggle" onclick="toggleMobileMenu()" aria-label="Toggle Menu">
-        <span></span><span></span><span></span>
-      </button>
     </div>
   </nav>
 
-  <!-- Mobile Menu -->
+  <!-- Mobile Menu (for narrow screens) -->
   <div class="mobile-menu" id="mobileMenu">
     <button class="mobile-tab" onclick="navigateTo('log'); toggleMobileMenu()">📋 Daily Log</button>
     <button class="mobile-tab" onclick="navigateTo('calendar'); toggleMobileMenu()">📅 Calendar View</button>
@@ -129,7 +165,10 @@
         <span class="toggle-switch-slider"></span>
       </label>
     </div>
+    <button class="mobile-tab" onclick="toggleMobileMode(); toggleMobileMenu()">📱 Toggle Mobile View</button>
+    <button class="mobile-tab" onclick="openSyncHubModal(); toggleMobileMenu()">📲 QR Sync Hub</button>
     <button class="mobile-tab" onclick="refreshAppData(); toggleMobileMenu()">🔄 Refresh Data</button>
+    <button class="mobile-tab" onclick="toggleTheme(); toggleMobileMenu()">🌓 Toggle Dark Mode</button>
     <button class="mobile-tab mobile-tab-danger" onclick="openClearModal(); toggleMobileMenu()">🗑️ Clear All Records</button>
   </div>
 
@@ -145,7 +184,13 @@
         </div>
         <div class="date-selector-wrap">
           <label for="logDate" class="date-label">📅 Select Date</label>
-          <input type="date" id="logDate" class="date-input" onchange="loadLogForDate()" />
+          <div class="date-picker-row">
+            <input type="date" id="logDate" class="date-input" onchange="loadLogForDate()" />
+            <button class="log-sync-day-btn" id="logSyncDayBtn" onclick="syncCurrentDayLog()" title="Generate targeted Sync QR for this date">
+              <span class="sync-day-icon">📲</span>
+              <span class="sync-day-text">Sync Day</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -296,6 +341,29 @@
         <div class="header-text">
           <h1 class="page-title">Monthly Overview 🗓️</h1>
           <p class="page-subtitle">See every day at a glance — click any date to view its readings.</p>
+        </div>
+        <div class="calendar-header-actions">
+          <button class="sync-select-mode-toggle" id="syncSelectModeToggle" onclick="toggleSyncSelectMode()">
+            <span class="sync-toggle-icon">📲</span>
+            <span class="sync-toggle-text">Select Data to Sync</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Selective Sync Floating Banner -->
+      <div class="calendar-sync-banner" id="calendarSyncBanner" style="display: none;">
+        <div class="cal-sync-info">
+          <span class="cal-sync-badge">SYNC MODE</span>
+          <span class="cal-sync-text" id="calSyncCountText">Select logged dates to sync</span>
+        </div>
+        <div class="cal-sync-actions">
+          <button class="cal-sync-action-btn select-all" onclick="selectAllLoggedDates()">Select All Logged</button>
+          <button class="cal-sync-action-btn clear-sel" onclick="clearSelectedSyncDates()">Clear</button>
+          <button class="cal-sync-action-btn generate-qr" onclick="generateSelectiveSyncQr()" id="calGenerateQrBtn">
+            <span>Generate Sync QR</span>
+            <span class="cal-sync-count-chip" id="calSelectedCountBadge">0</span>
+          </button>
+          <button class="cal-sync-close-btn" onclick="toggleSyncSelectMode(false)" title="Exit Sync Mode">✕</button>
         </div>
       </div>
 
@@ -520,9 +588,9 @@
       <!-- Sub-Page Navigation Switch: Prescription Pad vs Billing Invoice -->
       <div class="report-subnav-container">
         <div class="report-subnav" role="tablist" aria-label="Document Type">
-          <button type="button" class="report-subnav-btn active" id="subtab-rx" onclick="switchReportSubPage('rx')" role="tab" aria-selected="true">
+          <button type="button" class="report-subnav-btn active" id="subtab-rx" onclick="switchReportSubPage('rx')" role="tab" aria-selected="true" title="Doctor's Prescription & Recommendations">
             <span class="subnav-btn-icon">🩺</span>
-            <span class="subnav-btn-text">Prescription Pad</span>
+            <span class="subnav-btn-text">Rec.</span>
           </button>
           <button type="button" class="report-subnav-btn" id="subtab-invoice" onclick="switchReportSubPage('invoice')" role="tab" aria-selected="false">
             <span class="subnav-btn-icon">🧾</span>
@@ -649,14 +717,78 @@
             <input type="text" id="invAgeInput" class="inv-config-input age-input" value="64 Yrs" placeholder="e.g. 64 Yrs" oninput="handleInvoiceConfigChange()" />
           </div>
 
-          <!-- 5. Payment Status -->
-          <div class="report-ctrl-group">
-            <label class="ctrl-label" for="invStatusSelect">💳 Payment Status</label>
-            <select id="invStatusSelect" class="inv-config-select" onchange="handleInvoiceConfigChange()">
-              <option value="PAID ✅" selected>PAID ✅</option>
-              <option value="PENDING ⏳">PENDING ⏳</option>
-              <option value="PARTIALLY PAID 🟡">PARTIALLY PAID 🟡</option>
-            </select>
+          <!-- 5. Payment Status Toggle (Payment Due vs Paid) -->
+          <div class="report-ctrl-group payment-status-ctrl-group">
+            <label class="ctrl-label">💳 Payment Status</label>
+            <div class="payment-status-toggle-container">
+              <div class="status-segmented-control" role="group" aria-label="Payment Status">
+                <button
+                  type="button"
+                  class="status-segment-btn"
+                  id="statusSegmentDue"
+                  onclick="setInvoicePaymentStatus('due')"
+                  title="Switch status to Payment Due (Shows QR Code)"
+                >
+                  <span class="status-dot due-dot"></span>
+                  <span>Payment Due</span>
+                </button>
+                <button
+                  type="button"
+                  class="status-segment-btn active"
+                  id="statusSegmentPaid"
+                  onclick="setInvoicePaymentStatus('paid')"
+                  title="Switch status to Paid (Shows Paid &amp; Verified Stamp)"
+                >
+                  <span class="status-dot paid-dot"></span>
+                  <span>Paid</span>
+                </button>
+              </div>
+              <label class="toggle-switch-wrap payment-quick-toggle" for="invStatusToggle" title="Toggle between Payment Due and Paid">
+                <input
+                  type="checkbox"
+                  id="invStatusToggle"
+                  checked
+                  onchange="setInvoicePaymentStatus(this.checked ? 'paid' : 'due')"
+                  aria-label="Payment Status Toggle (Checked is Paid, Unchecked is Payment Due)"
+                />
+                <span class="toggle-switch-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 6. Discount Configuration Field (Amount or Percentage) -->
+          <div class="report-ctrl-group discount-ctrl-group">
+            <div class="total-ctrl-header">
+              <label class="ctrl-label" for="invDiscountInput">🏷️ Discount</label>
+              <span class="tax-amount-hint discount-amount-hint" id="invDiscountCalculatedHint">-₹ 0.00</span>
+            </div>
+            <div class="discount-input-row">
+              <div class="input-with-currency discount-input-box">
+                <span class="currency-prefix" id="invDiscountPrefix">₹</span>
+                <input
+                  type="number"
+                  id="invDiscountInput"
+                  class="inv-config-input discount-input"
+                  value="0"
+                  min="0"
+                  step="50"
+                  placeholder="0"
+                  oninput="handleDiscountConfigChange()"
+                />
+              </div>
+              <div class="discount-type-switcher" role="group" aria-label="Discount Unit">
+                <button type="button" class="disc-type-btn active" id="discTypeAmtBtn" onclick="setDiscountType('amount')" title="Flat Rupee Discount (₹)">₹ Flat</button>
+                <button type="button" class="disc-type-btn" id="discTypePctBtn" onclick="setDiscountType('percent')" title="Percentage Discount (%)">% Pct</button>
+              </div>
+            </div>
+            <div class="tax-preset-pills" id="discountPillsContainer">
+              <button type="button" class="tax-pill active" id="discPill-0" onclick="setDiscountPreset(0, 'amount')">0</button>
+              <button type="button" class="tax-pill" id="discPill-5p" onclick="setDiscountPreset(5, 'percent')">5%</button>
+              <button type="button" class="tax-pill" id="discPill-10p" onclick="setDiscountPreset(10, 'percent')">10%</button>
+              <button type="button" class="tax-pill" id="discPill-15p" onclick="setDiscountPreset(15, 'percent')">15%</button>
+              <button type="button" class="tax-pill" id="discPill-100" onclick="setDiscountPreset(100, 'amount')">₹100</button>
+              <button type="button" class="tax-pill" id="discPill-200" onclick="setDiscountPreset(200, 'amount')">₹200</button>
+            </div>
           </div>
 
           <!-- 6. Tax Configuration: SGST (State Goods and Services Tax) -->
@@ -987,12 +1119,70 @@
             </table>
           </div>
 
-          <!-- 4. Heavily Bolded, Right-Aligned Total Payment Footer -->
-          <div class="inv-total-section">
+          <!-- 4. Billing Table Footer: Payment Action Area (QR Code / Stamp) + Total Breakdown -->
+          <div class="inv-table-footer-row">
+            
+            <!-- Bottom-Left Space of Billing Table Footer: Positioned directly to the left of "Total Amount Due" -->
+            <div class="inv-footer-action-area" id="invFooterActionArea">
+              
+              <!-- Payment Due State (QR Code): Dynamically rendered when status is "Payment Due" -->
+              <div class="inv-qr-container" id="invQrContainer" style="display: none;">
+                <div class="inv-qr-header">
+                  <span class="inv-qr-badge-pill">
+                    <span class="qr-pulse-dot"></span>
+                    SCAN &amp; PAY VIA UPI
+                  </span>
+                </div>
+                <div class="inv-qr-box">
+                  <img src="payment_qr.jpg" alt="UPI Payment QR Code" class="inv-qr-image" />
+                </div>
+                <div class="inv-qr-footer">
+                  <div class="inv-qr-apps">
+                    <span class="qr-app-tag gpay">GPay</span>
+                    <span class="qr-app-tag phonepe">PhonePe</span>
+                    <span class="qr-app-tag paytm">Paytm</span>
+                    <span class="qr-app-tag upi">BHIM UPI</span>
+                  </div>
+                  <div class="inv-qr-upi-row">
+                    <span class="inv-qr-upi-lbl">UPI ID:</span>
+                    <strong class="inv-qr-upi-val">9464360673@okaxis</strong>
+                  </div>
+                  <div class="inv-qr-payee">Dr. Gursimar Singh • GS Clinic</div>
+                </div>
+              </div>
+
+              <!-- Paid State (Custom Stamp): Prominent angled "Paid and Verified" stamp incorporating circular DR. GS logo -->
+              <div class="inv-paid-stamp-wrapper" id="invPaidStampWrapper">
+                <div class="inv-paid-custom-stamp" id="invPaidCustomStamp">
+                  <!-- Circular "DR. GS" Clinic Logo physically incorporated into stamp -->
+                  <div class="stamp-logo-medallion">
+                    <img src="doctor_logo.png" alt="DR. GS Logo" class="stamp-logo-img" />
+                  </div>
+                  <!-- Stamp Typography & Inked Details -->
+                  <div class="stamp-content-col">
+                    <div class="stamp-clinic-star">★ GS CLINIC • LUDHIANA ★</div>
+                    <div class="stamp-main-title">PAID &amp; VERIFIED</div>
+                    <div class="stamp-details-row">
+                      <span class="stamp-auth-text">OFFICIALLY SETTLED IN FULL</span>
+                      <span class="stamp-check-badge">✓</span>
+                    </div>
+                    <div class="stamp-doc-ref">DR. GURSIMAR SINGH • CHIEF PHYSICIAN</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Right: Heavily Bolded Total Breakdown with Inserted Discount Line Item -->
             <div class="inv-total-breakdown">
               <div class="inv-subtotal-row">
                 <span class="inv-breakdown-lbl">Itemized Subtotal:</span>
                 <span class="inv-breakdown-val" id="invDisplaySubtotal">₹ 1,800.00</span>
+              </div>
+              <!-- Corresponding Discount line item subtracted from subtotal before final total -->
+              <div class="inv-subtotal-row inv-discount-row" id="invDisplayDiscountRow">
+                <span class="inv-breakdown-lbl">Discount <span id="invDisplayDiscountRate">(Flat)</span>:</span>
+                <span class="inv-breakdown-val inv-discount-val" id="invDisplayDiscount">-₹ 0.00</span>
               </div>
               <div class="inv-subtotal-row inv-tax-row" id="invDisplaySgstRow">
                 <span class="inv-breakdown-lbl">SGST (<span id="invDisplaySgstRate">0%</span>):</span>
@@ -1007,12 +1197,15 @@
                 <span class="inv-grand-val" id="invDisplayTotalDue">₹ 1,800.00</span>
               </div>
             </div>
-            <div class="inv-words-bar">
-              <span><strong>Amount in Words:</strong> <span id="invDisplayWords">INR One Thousand Eight Hundred Only</span></span>
-            </div>
+
           </div>
 
-          <!-- 5. Hospital Notes, Clinic Stamp & Doctor Signature Footer -->
+          <!-- Words bar -->
+          <div class="inv-words-bar">
+            <span><strong>Amount in Words:</strong> <span id="invDisplayWords">INR One Thousand Eight Hundred Only</span></span>
+          </div>
+
+          <!-- 5. Hospital Notes & Doctor Signature Footer -->
           <div class="inv-footer">
             <div class="inv-footer-notes">
               <div class="inv-notes-title">TERMS & PATIENT NOTES:</div>
@@ -1021,13 +1214,6 @@
                 <li>Prescribed medication and lifestyle monitoring records are attached with patient prescription pad.</li>
                 <li>Emergency cardiovascular support & clinic helpline: +91 9464360673.</li>
               </ol>
-              <div class="inv-stamp-badge">
-                <div class="inv-stamp-inner">
-                  <span>★ GS CLINIC ★</span>
-                  <strong>PAID & VERIFIED</strong>
-                  <span>LUDHIANA, PB</span>
-                </div>
-              </div>
             </div>
 
             <div class="inv-footer-signature">
@@ -1126,6 +1312,211 @@
     </div>
   </div>
 
+  <!-- ===================== SYNC HUB MODAL ===================== -->
+  <div class="modal-overlay" id="syncHubModal" onclick="closeSyncHubModal()">
+    <div class="modal-card sync-hub-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeSyncHubModal()" aria-label="Close">✕</button>
+      <div class="sync-modal-header">
+        <div class="sync-header-icon">🔄</div>
+        <div class="sync-header-text">
+          <h3 class="modal-title">QR Data Synchronization Hub</h3>
+          <p class="modal-subtitle">Fast, secure peer-to-peer sync between mobile and desktop</p>
+        </div>
+      </div>
+      <div class="sync-hub-grid">
+        <div class="sync-hub-option" onclick="openSelectiveSyncFromHub()">
+          <div class="sync-option-icon qr-icon-bg">📲</div>
+          <div class="sync-option-details">
+            <h4 class="sync-option-title">Generate Sync QR (Export)</h4>
+            <p class="sync-option-desc">Select one or multiple days and serialize records into an ultra-compact QR payload.</p>
+          </div>
+          <span class="sync-option-badge">Sender</span>
+        </div>
+        <div class="sync-hub-option" onclick="openSyncScannerModal(); closeSyncHubModal()">
+          <div class="sync-option-icon cam-icon-bg">📷</div>
+          <div class="sync-option-details">
+            <h4 class="sync-option-title">Scan to Sync (Import / Merge)</h4>
+            <p class="sync-option-desc">Scan incoming QR code using webcam or file upload to seamlessly merge without duplicates.</p>
+          </div>
+          <span class="sync-option-badge receiver">Receiver</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== TARGETED QR CODE MODAL ===================== -->
+  <div class="modal-overlay" id="syncQrModal" onclick="closeSyncQrModal()">
+    <div class="modal-card sync-qr-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeSyncQrModal()" aria-label="Close">✕</button>
+      <div class="sync-modal-header">
+        <div class="sync-header-icon qr-badge-anim">📲</div>
+        <div class="sync-header-text">
+          <h3 class="modal-title">Selective Sync QR Code</h3>
+          <p class="modal-subtitle" id="syncQrSubtitle">Targeted payload ready for scanning</p>
+        </div>
+      </div>
+      
+      <!-- Date Pills Container -->
+      <div class="sync-selected-dates-wrap" id="syncSelectedDatesWrap">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- QR Canvas Container -->
+      <div class="sync-qr-render-box">
+        <div id="syncQrCanvas" class="sync-qr-canvas-holder"></div>
+        <div class="sync-qr-meta">
+          <span class="sync-qr-badge" id="syncPayloadSizeBadge">0 bytes</span>
+          <span class="sync-qr-badge-status">Targeted Serialization</span>
+        </div>
+      </div>
+
+      <div class="sync-qr-actions">
+        <button class="sync-act-btn outline" onclick="copySyncPayloadJson()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          <span>Copy Data</span>
+        </button>
+        <button class="sync-act-btn primary" onclick="downloadSyncQrImage()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Save Image</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SCANNER MODAL (RECEIVER) ===================== -->
+  <div class="modal-overlay" id="syncScannerModal" onclick="closeSyncScannerModal()">
+    <div class="modal-card sync-scanner-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeSyncScannerModal()" aria-label="Close">✕</button>
+      <div class="sync-modal-header">
+        <div class="sync-header-icon cam-badge-anim">📷</div>
+        <div class="sync-header-text">
+          <h3 class="modal-title">Scan to Sync — Desktop Receiver</h3>
+          <p class="modal-subtitle">Point webcam at QR code or upload image to merge</p>
+        </div>
+      </div>
+
+      <!-- Viewfinder Video Area -->
+      <div class="scanner-viewfinder-container" id="scannerViewfinder">
+        <video id="scannerVideo" playsinline autoplay muted></video>
+        <canvas id="scannerCanvas" style="display: none;"></canvas>
+        <div class="scanner-overlay-frame">
+          <div class="scanner-corner top-left"></div>
+          <div class="scanner-corner top-right"></div>
+          <div class="scanner-corner bottom-left"></div>
+          <div class="scanner-corner bottom-right"></div>
+          <div class="scanner-laser" id="scannerLaser"></div>
+        </div>
+        <div class="scanner-status-bar" id="scannerStatusBar">
+          <span class="scanner-status-dot"></span>
+          <span id="scannerStatusText">Starting camera...</span>
+        </div>
+      </div>
+
+      <!-- Alternative Input Controls (File Upload & Direct JSON Paste) -->
+      <div class="scanner-fallback-tabs">
+        <button class="scanner-tab-btn active" id="scannerTabCam" onclick="switchScannerMode('cam')">📹 Camera</button>
+        <button class="scanner-tab-btn" id="scannerTabFile" onclick="switchScannerMode('file')">📁 Upload QR File</button>
+        <button class="scanner-tab-btn" id="scannerTabPaste" onclick="switchScannerMode('paste')">📋 Paste JSON</button>
+      </div>
+
+      <div class="scanner-mode-panel" id="scannerFilePanel" style="display: none;">
+        <label class="scanner-upload-dropzone" for="scannerFileInput">
+          <input type="file" id="scannerFileInput" accept="image/*" onchange="handleQrFileUpload(event)" style="display:none;" />
+          <span class="upload-icon">🖼️</span>
+          <span class="upload-text">Click to choose or drop a QR code image</span>
+          <span class="upload-hint">Supports PNG, JPG, WebP</span>
+        </label>
+      </div>
+
+      <div class="scanner-mode-panel" id="scannerPastePanel" style="display: none;">
+        <textarea id="scannerPasteInput" class="scanner-paste-textarea" placeholder='Paste {"type":"heartmate_sync", ...} payload here'></textarea>
+        <button class="sync-act-btn primary w-100" onclick="handleManualJsonPaste()">Merge Incoming Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== FIXED BOTTOM TAB BAR (MOBILE MODE) ===================== -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Mobile Navigation">
+    <button class="bottom-tab-btn active" id="bottomTabLog" onclick="navigateToMobileTab('log')">
+      <span class="bottom-tab-icon">📋</span>
+      <span class="bottom-tab-label">Daily Log</span>
+    </button>
+    <button class="bottom-tab-btn" id="bottomTabCal" onclick="navigateToMobileTab('calendar')">
+      <span class="bottom-tab-icon">📅</span>
+      <span class="bottom-tab-label">Calendar</span>
+    </button>
+    <button class="bottom-tab-btn" id="bottomTabSync" onclick="openSyncHubModal()">
+      <div class="bottom-tab-sync-bubble">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+          <path d="M10 7h4v4h-4z" opacity="0.6"></path>
+        </svg>
+      </div>
+      <span class="bottom-tab-label">Sync</span>
+    </button>
+    <button class="bottom-tab-btn" id="bottomTabMore" onclick="toggleMobileMoreSheet(true)">
+      <span class="bottom-tab-icon">⋯</span>
+      <span class="bottom-tab-label">More</span>
+    </button>
+  </nav>
+
+  <!-- ===================== MOBILE MORE SHEET DRAWER ===================== -->
+  <div class="more-sheet-overlay" id="moreSheetOverlay" onclick="toggleMobileMoreSheet(false)" aria-hidden="true">
+    <div class="more-sheet-drawer" id="moreSheetDrawer" onclick="event.stopPropagation()">
+      <div class="more-sheet-handle"></div>
+      <div class="more-sheet-header">
+        <h3 class="more-sheet-title">More Options & Tools</h3>
+        <button class="more-sheet-close" onclick="toggleMobileMoreSheet(false)" aria-label="Close menu">✕</button>
+      </div>
+      <div class="more-sheet-grid">
+        <button class="more-sheet-item" onclick="navigateToMobileTab('analytics'); toggleMobileMoreSheet(false)">
+          <div class="more-sheet-item-icon bg-blue">📈</div>
+          <div class="more-sheet-item-info">
+            <span class="more-sheet-item-title">Health Analytics</span>
+            <span class="more-sheet-item-desc">Trends, blood pressure averages & MAP charts</span>
+          </div>
+        </button>
+        <button class="more-sheet-item" onclick="navigateToMobileTab('report'); toggleMobileMoreSheet(false)">
+          <div class="more-sheet-item-icon bg-green">🩺</div>
+          <div class="more-sheet-item-info">
+            <span class="more-sheet-item-title">Rx Receipt & Invoices</span>
+            <span class="more-sheet-item-desc">Dr. GS Clinic consultation pad & billing</span>
+          </div>
+        </button>
+        <button class="more-sheet-item" onclick="openSyncScannerModal(); toggleMobileMoreSheet(false)">
+          <div class="more-sheet-item-icon bg-purple">📷</div>
+          <div class="more-sheet-item-info">
+            <span class="more-sheet-item-title">Scan to Sync (Receiver)</span>
+            <span class="more-sheet-item-desc">Live camera scanner & QR code importer</span>
+          </div>
+        </button>
+        <button class="more-sheet-item" onclick="toggleSyncSelectMode(true); navigateToMobileTab('calendar'); toggleMobileMoreSheet(false)">
+          <div class="more-sheet-item-icon bg-orange">✨</div>
+          <div class="more-sheet-item-info">
+            <span class="more-sheet-item-title">Selective Sync Mode</span>
+            <span class="more-sheet-item-desc">Pick specific days & generate QR</span>
+          </div>
+        </button>
+      </div>
+      <div class="more-sheet-footer">
+        <div class="more-sheet-toggle-row">
+          <span>🩺 Clinical Status Labels</span>
+          <label class="nav-switch" for="sheetClinicalToggle">
+            <input type="checkbox" id="sheetClinicalToggle" checked onchange="toggleClinicalStatus(this.checked)" />
+            <span class="nav-switch-slider"></span>
+          </label>
+        </div>
+        <div class="more-sheet-toggle-row">
+          <span>🌓 Dark Theme</span>
+          <button class="sheet-theme-btn" onclick="toggleTheme()">Toggle Theme</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================== MOBILE QUICK ACTION BUTTON (FAB) & SPEED-DIAL ===================== -->
   <!-- Soft Backdrop Blur Overlay -->
   <div class="fab-backdrop" id="fabBackdrop" onclick="toggleFabMenu(false)" aria-hidden="true"></div>
@@ -1188,6 +1579,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="qrcode.min.js"></script>
+  <script src="jsqr.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

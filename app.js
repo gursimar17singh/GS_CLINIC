@@ -57,6 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSaveBtnRipple();
   initTheme();
   syncClinicalStatusToggles(isClinicalStatusVisible);
+  initMobileMode();
+  setupSettingsDropdown();
 
   // Keyboard shortcut: Ctrl+S to save
   document.addEventListener('keydown', (e) => {
@@ -76,17 +78,141 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ================================================
-//  NAVIGATION
+//  DEBOUNCE UTILITY & LAZY RENDERING STATE
+// ================================================
+function debounce(fn, wait = 180) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+
+// Lazy Rendering tracking for pages (avoid background re-renders and CPU lag)
+const pageRenderState = {
+  calendar: false,
+  analytics: false,
+  report: false,
+  calendarDirty: true,
+  analyticsDirty: true,
+  reportDirty: true
+};
+
+function markPagesDirty() {
+  pageRenderState.calendarDirty = true;
+  pageRenderState.analyticsDirty = true;
+  pageRenderState.reportDirty = true;
+}
+
+// ================================================
+//  SETTINGS DROPDOWN MENU HANDLERS
+// ================================================
+function setupSettingsDropdown() {
+  const btn = document.getElementById('settingsMenuBtn');
+  const menu = document.getElementById('settingsDropdownMenu');
+
+  if (btn) {
+    // Ensure onclick event listener is cleanly bound
+    btn.onclick = function(e) {
+      toggleSettingsDropdown(e);
+    };
+  }
+
+  // Prevent event bubbling on the dropdown itself so clicking inside does not close it
+  if (menu) {
+    menu.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+}
+
+function toggleSettingsDropdown(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const wrap = document.getElementById('settingsDropdownWrap');
+  const menu = document.getElementById('settingsDropdownMenu');
+  const btn = document.getElementById('settingsMenuBtn');
+  if (!menu) return;
+
+  // Toggle active class .show-dropdown directly on the dropdown menu container
+  const isOpen = menu.classList.toggle('show-dropdown');
+  
+  // Also synchronize helper classes & ARIA attributes
+  menu.classList.toggle('show', isOpen);
+  if (wrap) wrap.classList.toggle('open', isOpen);
+  if (btn) {
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    btn.classList.toggle('active', isOpen);
+  }
+}
+
+function closeSettingsDropdown() {
+  const wrap = document.getElementById('settingsDropdownWrap');
+  const menu = document.getElementById('settingsDropdownMenu');
+  const btn = document.getElementById('settingsMenuBtn');
+  
+  if (menu) {
+    menu.classList.remove('show-dropdown');
+    menu.classList.remove('show');
+  }
+  if (wrap) wrap.classList.remove('open');
+  if (btn) {
+    btn.setAttribute('aria-expanded', 'false');
+    btn.classList.remove('active');
+  }
+}
+
+// Global click-outside-to-close listener: removes .show-dropdown if clicked outside settings button & menu
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('settingsDropdownWrap');
+  const menu = document.getElementById('settingsDropdownMenu');
+  const btn = document.getElementById('settingsMenuBtn');
+
+  if (menu && menu.classList.contains('show-dropdown')) {
+    const clickedInsideBtn = btn && btn.contains(e.target);
+    const clickedInsideMenu = menu && menu.contains(e.target);
+    const clickedInsideWrap = wrap && wrap.contains(e.target);
+
+    if (!clickedInsideBtn && !clickedInsideMenu && !clickedInsideWrap) {
+      closeSettingsDropdown();
+    }
+  }
+});
+
+// ================================================
+//  NAVIGATION (LAZY RENDERING ARCHITECTURE)
 // ================================================
 function navigateTo(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
 
-  document.getElementById(`page-${page}`).classList.add('active');
-  document.getElementById(`tab-${page}`).classList.add('active');
+  const targetPage = document.getElementById(`page-${page}`);
+  if (targetPage) targetPage.classList.add('active');
+  const targetTab = document.getElementById(`tab-${page}`);
+  if (targetTab) targetTab.classList.add('active');
 
-  if (page === 'calendar') renderCalendar();
-  if (page === 'analytics') renderAnalytics();
+  updateBottomNavActiveState(page);
+
+  // Lazy Rendering: Only render heavy pages when user explicitly visits them,
+  // and only re-calculate if underlying data is marked dirty!
+  if (page === 'calendar') {
+    if (!pageRenderState.calendar || pageRenderState.calendarDirty) {
+      renderCalendar();
+      pageRenderState.calendar = true;
+      pageRenderState.calendarDirty = false;
+    }
+  }
+
+  if (page === 'analytics') {
+    if (!pageRenderState.analytics || pageRenderState.analyticsDirty) {
+      renderAnalytics();
+      pageRenderState.analytics = true;
+      pageRenderState.analyticsDirty = false;
+    }
+  }
+
   if (page === 'report') {
     if (typeof reportActiveSubPage !== 'undefined' && reportActiveSubPage === 'invoice') {
       if (typeof initInvoiceDefaults === 'function' && !isInvoiceInitialized) {
@@ -95,7 +221,11 @@ function navigateTo(page) {
         renderBillingInvoice();
       }
     } else {
-      renderReportPad();
+      if (!pageRenderState.report || pageRenderState.reportDirty) {
+        renderReportPad();
+        pageRenderState.report = true;
+        pageRenderState.reportDirty = false;
+      }
     }
   }
 }
@@ -213,21 +343,30 @@ function saveReadings() {
     showToast(`🗑️ Reading cleared for ${formatDisplayDate(dateKey)}.`, 'info');
   }
 
-  // Performance: Only update graphs/DOM when officially saved or deleted, and only if view is active
+  // Mark lazy-loaded pages dirty so inactive pages don't waste CPU/DOM cycles
+  markPagesDirty();
+
+  // Performance & DOM Optimization: Only update graphs/DOM if that specific view is currently active!
   if (document.getElementById('page-analytics')?.classList.contains('active')) {
     renderAnalytics();
+    pageRenderState.analytics = true;
+    pageRenderState.analyticsDirty = false;
   }
   if (chartFsInstance && currentFullscreenType) {
     switchFullscreenType(currentFullscreenType);
   }
   if (document.getElementById('page-calendar')?.classList.contains('active')) {
     renderCalendar();
+    pageRenderState.calendar = true;
+    pageRenderState.calendarDirty = false;
   }
   if (document.getElementById('page-report')?.classList.contains('active')) {
     if (typeof reportActiveSubPage !== 'undefined' && reportActiveSubPage === 'invoice') {
       if (typeof renderBillingInvoice === 'function') renderBillingInvoice();
     } else {
       renderReportPad();
+      pageRenderState.report = true;
+      pageRenderState.reportDirty = false;
     }
   }
 }
@@ -317,11 +456,16 @@ function updateDot(slot) {
 function setupInputListeners() {
   SLOTS.forEach(slot => {
     const prefix = slot === 'morning' ? 'morn' : slot === 'afternoon' ? 'aft' : 'eve';
+    const debouncedUpdate = debounce(() => {
+      updateStatusBadge(slot);
+      updateDot(slot);
+    }, 120);
+
     ['sys', 'dia', 'pulse'].forEach(field => {
-      document.getElementById(`${prefix}-${field}`).addEventListener('input', () => {
-        updateStatusBadge(slot);
-        updateDot(slot);
-      });
+      const el = document.getElementById(`${prefix}-${field}`);
+      if (el) {
+        el.addEventListener('input', debouncedUpdate, { passive: true });
+      }
     });
   });
 }
@@ -405,15 +549,38 @@ function renderCalendar() {
     cell.appendChild(numEl);
     cell.appendChild(dotEl);
 
+    if (isSyncSelectMode) {
+      cell.classList.add('sync-mode-active');
+      if (!isOtherMonth && count > 0) {
+        const isChecked = selectedSyncDates.has(dateKey);
+        const chkEl = document.createElement('div');
+        chkEl.className = 'cal-sync-checkbox' + (isChecked ? ' checked' : '');
+        chkEl.textContent = isChecked ? '✓' : '';
+        cell.appendChild(chkEl);
+        if (isChecked) cell.classList.add('sync-selected');
+      }
+    }
+
     if (isOtherMonth) cell.classList.add('other-month');
     if (dateKey === today) cell.classList.add('today');
 
     if (!isOtherMonth) {
-      cell.addEventListener('click', () => openDayModal(dateKey, dayData));
+      cell.addEventListener('click', (e) => {
+        if (isSyncSelectMode) {
+          if (count > 0) {
+            toggleDateSelection(dateKey, e);
+          } else {
+            showToast('No readings logged on this date.', 'info');
+          }
+        } else {
+          openDayModal(dateKey, dayData);
+        }
+      });
     }
 
     gridEl.appendChild(cell);
   }
+  updateSyncBanner();
 }
 
 function changeMonth(dir) {
@@ -1562,6 +1729,14 @@ function applyTheme(theme, animate) {
 
   localStorage.setItem('heartmate_theme', theme);
 
+  // Synchronize Settings Dropdown Theme Badge & Icon
+  const themeBadge = document.getElementById('themeStatusBadge');
+  const themeIcon = document.querySelector('.theme-icon-dynamic');
+  const themeText = document.getElementById('themeItemText');
+  if (themeBadge) themeBadge.textContent = theme === 'dark' ? 'Dark' : 'Light';
+  if (themeIcon) themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+  if (themeText) themeText.textContent = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+
   // Re-render charts with updated colors if they exist
   if (Object.keys(chartInstances).length > 0) {
     setTimeout(() => updateChartTheme(theme), 50);
@@ -1708,12 +1883,13 @@ function executeCleanAll() {
   }
 }
 
-// Close modals with Escape key
+// Close modals & dropdowns with Escape key
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeChartFullscreen();
     closeClearModal();
     closeModal();
+    closeSettingsDropdown();
   }
 });
 
@@ -1732,6 +1908,9 @@ let invoiceItems = [
   { id: 'item-3', desc: 'Lifestyle & Dietary Sodium Intervention Protocol Guidance', date: '', amount: 500 }
 ];
 let invoiceManualTotal = null; // null if auto-sum, number if manually overridden
+let invoicePaymentStatus = 'paid'; // 'paid' or 'due'
+let invoiceDiscountValue = 0;
+let invoiceDiscountType = 'amount'; // 'amount' or 'percent'
 let isInvoiceInitialized = false;
 
 function escapeHtml(str) {
@@ -2387,11 +2566,24 @@ function initInvoiceDefaults() {
     if (!item.date) item.date = today;
   });
 
-  // Calculate default auto-sum with taxes
+  const discInput = document.getElementById('invDiscountInput');
+  if (discInput && !discInput.value) {
+    discInput.value = '0';
+  }
+
+  // Calculate default auto-sum with discount and taxes
   const subtotal = invoiceItems.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+  const discVal = Math.max(0, parseFloat(discInput?.value) || 0);
+  let discAmt = 0;
+  if (invoiceDiscountType === 'percent') {
+    discAmt = Math.round((subtotal * discVal / 100) * 100) / 100;
+  } else {
+    discAmt = Math.min(subtotal, discVal);
+  }
+  const taxableSubtotal = Math.max(0, subtotal - discAmt);
   const sgstRate = Math.max(0, parseFloat(sgstInput?.value) || 0);
   const igstRate = Math.max(0, parseFloat(igstInput?.value) || 0);
-  const grandTotal = Math.round((subtotal + (subtotal * sgstRate / 100) + (subtotal * igstRate / 100)) * 100) / 100;
+  const grandTotal = Math.round((taxableSubtotal + (taxableSubtotal * sgstRate / 100) + (taxableSubtotal * igstRate / 100)) * 100) / 100;
 
   const totalInput = document.getElementById('invTotalAmountInput');
   if (totalInput && (!totalInput.value || invoiceManualTotal === null)) {
@@ -2505,12 +2697,20 @@ function updateChargeItem(id, field, value) {
   if (field === 'amount') {
     const parsed = parseFloat(value);
     item.amount = isNaN(parsed) ? 0 : parsed;
-    // If not manually locked, auto sync total including taxes
+    // If not manually locked, auto sync total including discount and taxes
     if (invoiceManualTotal === null) {
       const subtotal = invoiceItems.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+      const discVal = Math.max(0, parseFloat(document.getElementById('invDiscountInput')?.value) || 0);
+      let discAmt = 0;
+      if (invoiceDiscountType === 'percent') {
+        discAmt = Math.round((subtotal * discVal / 100) * 100) / 100;
+      } else {
+        discAmt = Math.min(subtotal, discVal);
+      }
+      const taxableSubtotal = Math.max(0, subtotal - discAmt);
       const sgstRate = Math.max(0, parseFloat(document.getElementById('invSgstInput')?.value) || 0);
       const igstRate = Math.max(0, parseFloat(document.getElementById('invIgstInput')?.value) || 0);
-      const grandTotal = Math.round((subtotal + (subtotal * sgstRate / 100) + (subtotal * igstRate / 100)) * 100) / 100;
+      const grandTotal = Math.round((taxableSubtotal + (taxableSubtotal * sgstRate / 100) + (taxableSubtotal * igstRate / 100)) * 100) / 100;
       const totalInput = document.getElementById('invTotalAmountInput');
       if (totalInput) totalInput.value = grandTotal;
     }
@@ -2522,22 +2722,134 @@ function updateChargeItem(id, field, value) {
 }
 
 /**
- * Auto-sums itemized charges plus SGST & IGST and updates the Total Payment Amount control input.
+ * Toggles invoice payment status between 'paid' and 'due'.
+ * - In 'due' state: renders UPI Payment QR code in bottom-left footer, hides stamp.
+ * - In 'paid' state: hides QR code, renders prominent angled 'Paid & Verified' stamp incorporating circular DR. GS logo.
+ */
+function setInvoicePaymentStatus(status) {
+  invoicePaymentStatus = (status === 'due' ? 'due' : 'paid');
+
+  const segDue = document.getElementById('statusSegmentDue');
+  const segPaid = document.getElementById('statusSegmentPaid');
+  const toggle = document.getElementById('invStatusToggle');
+
+  if (segDue) segDue.classList.toggle('active', invoicePaymentStatus === 'due');
+  if (segPaid) segPaid.classList.toggle('active', invoicePaymentStatus === 'paid');
+  if (toggle) toggle.checked = (invoicePaymentStatus === 'paid');
+
+  renderBillingInvoice();
+
+  if (invoicePaymentStatus === 'due') {
+    showToast('Payment Due status: UPI QR Code displayed on invoice.', 'info');
+  } else {
+    showToast('Paid status: Official Paid & Verified clinic stamp applied.', 'success');
+  }
+}
+
+/**
+ * Sets discount calculation unit ('amount' for ₹ or 'percent' for %).
+ */
+function setDiscountType(type) {
+  invoiceDiscountType = (type === 'percent' ? 'percent' : 'amount');
+
+  const amtBtn = document.getElementById('discTypeAmtBtn');
+  const pctBtn = document.getElementById('discTypePctBtn');
+  const prefix = document.getElementById('invDiscountPrefix');
+
+  if (amtBtn) amtBtn.classList.toggle('active', invoiceDiscountType === 'amount');
+  if (pctBtn) pctBtn.classList.toggle('active', invoiceDiscountType === 'percent');
+  if (prefix) prefix.textContent = invoiceDiscountType === 'percent' ? '%' : '₹';
+
+  handleDiscountConfigChange();
+}
+
+/**
+ * Sets a discount preset value and unit.
+ */
+function setDiscountPreset(val, type) {
+  const input = document.getElementById('invDiscountInput');
+  if (input) input.value = val;
+
+  if (type) {
+    invoiceDiscountType = type;
+    const amtBtn = document.getElementById('discTypeAmtBtn');
+    const pctBtn = document.getElementById('discTypePctBtn');
+    const prefix = document.getElementById('invDiscountPrefix');
+    if (amtBtn) amtBtn.classList.toggle('active', invoiceDiscountType === 'amount');
+    if (pctBtn) pctBtn.classList.toggle('active', invoiceDiscountType === 'percent');
+    if (prefix) prefix.textContent = invoiceDiscountType === 'percent' ? '%' : '₹';
+  }
+
+  handleDiscountConfigChange();
+}
+
+/**
+ * Handles discount input changes, synchronizes preset pills, and recalculates total.
+ */
+function handleDiscountConfigChange() {
+  const input = document.getElementById('invDiscountInput');
+  const val = Math.max(0, parseFloat(input?.value) || 0);
+  invoiceDiscountValue = val;
+
+  // Sync discount preset pills active state
+  const container = document.getElementById('discountPillsContainer');
+  if (container) {
+    container.querySelectorAll('.tax-pill').forEach(pill => {
+      const isPercentPill = pill.textContent.includes('%');
+      const pillVal = parseFloat(pill.textContent.replace(/[^\d.]/g, '')) || 0;
+      const isMatch = (invoiceDiscountType === 'percent' && isPercentPill && pillVal === val) ||
+                      (invoiceDiscountType === 'amount' && !isPercentPill && pillVal === val);
+      pill.classList.toggle('active', isMatch);
+    });
+  }
+
+  // If not manually locked, auto sync total
+  if (invoiceManualTotal === null) {
+    const subtotal = invoiceItems.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+    let discAmt = 0;
+    if (invoiceDiscountType === 'percent') {
+      discAmt = Math.round((subtotal * val / 100) * 100) / 100;
+    } else {
+      discAmt = Math.min(subtotal, val);
+    }
+    const taxableSubtotal = Math.max(0, subtotal - discAmt);
+    const sgstRate = Math.max(0, parseFloat(document.getElementById('invSgstInput')?.value) || 0);
+    const igstRate = Math.max(0, parseFloat(document.getElementById('invIgstInput')?.value) || 0);
+    const grandTotal = Math.round((taxableSubtotal + (taxableSubtotal * sgstRate / 100) + (taxableSubtotal * igstRate / 100)) * 100) / 100;
+    const totalInput = document.getElementById('invTotalAmountInput');
+    if (totalInput) totalInput.value = grandTotal;
+  }
+
+  renderBillingInvoice();
+}
+
+/**
+ * Auto-sums itemized charges minus discount plus SGST & IGST and updates the Total Payment Amount control input.
  */
 function autoSumInvoiceItems() {
   invoiceManualTotal = null;
   const subtotal = invoiceItems.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
+
+  const discVal = Math.max(0, parseFloat(document.getElementById('invDiscountInput')?.value) || 0);
+  let discAmt = 0;
+  if (invoiceDiscountType === 'percent') {
+    discAmt = Math.round((subtotal * discVal / 100) * 100) / 100;
+  } else {
+    discAmt = Math.min(subtotal, discVal);
+  }
+
+  const taxableSubtotal = Math.max(0, subtotal - discAmt);
   const sgstRate = Math.max(0, parseFloat(document.getElementById('invSgstInput')?.value) || 0);
   const igstRate = Math.max(0, parseFloat(document.getElementById('invIgstInput')?.value) || 0);
-  const sgstAmt = (subtotal * sgstRate) / 100;
-  const igstAmt = (subtotal * igstRate) / 100;
-  const grandTotal = Math.round((subtotal + sgstAmt + igstAmt) * 100) / 100;
+  const sgstAmt = (taxableSubtotal * sgstRate) / 100;
+  const igstAmt = (taxableSubtotal * igstRate) / 100;
+  const grandTotal = Math.round((taxableSubtotal + sgstAmt + igstAmt) * 100) / 100;
 
   const totalInput = document.getElementById('invTotalAmountInput');
   if (totalInput) totalInput.value = grandTotal;
 
   renderBillingInvoice();
-  showToast(`🔄 Auto-Sum calculated (Subtotal + Taxes): ₹ ${grandTotal.toLocaleString('en-IN')}`, 'info');
+  showToast(`🔄 Auto-Sum calculated (Subtotal - Discount + Taxes): ₹ ${grandTotal.toLocaleString('en-IN')}`, 'info');
 }
 
 /**
@@ -2553,9 +2865,17 @@ function handleTaxConfigChange() {
   // If not manually locked, auto-calculate new total
   if (invoiceManualTotal === null) {
     const subtotal = invoiceItems.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
-    const sgstAmt = (subtotal * sgstRate) / 100;
-    const igstAmt = (subtotal * igstRate) / 100;
-    const grandTotal = Math.round((subtotal + sgstAmt + igstAmt) * 100) / 100;
+    const discVal = Math.max(0, parseFloat(document.getElementById('invDiscountInput')?.value) || 0);
+    let discAmt = 0;
+    if (invoiceDiscountType === 'percent') {
+      discAmt = Math.round((subtotal * discVal / 100) * 100) / 100;
+    } else {
+      discAmt = Math.min(subtotal, discVal);
+    }
+    const taxableSubtotal = Math.max(0, subtotal - discAmt);
+    const sgstAmt = (taxableSubtotal * sgstRate) / 100;
+    const igstAmt = (taxableSubtotal * igstRate) / 100;
+    const grandTotal = Math.round((taxableSubtotal + sgstAmt + igstAmt) * 100) / 100;
     const totalInput = document.getElementById('invTotalAmountInput');
     if (totalInput) totalInput.value = grandTotal;
   }
@@ -2598,11 +2918,15 @@ function handleManualTotalAmountInput() {
   renderBillingInvoice();
 }
 
+const debouncedRenderBillingInvoice = debounce(() => {
+  renderBillingInvoice();
+}, 150);
+
 /**
- * Synchronizes controls inputs (Date, Patient, Age, Status, Invoice #) to billing invoice.
+ * Synchronizes controls inputs (Date, Patient, Age, Status, Invoice #) to billing invoice with debounced DOM rendering.
  */
 function handleInvoiceConfigChange() {
-  renderBillingInvoice();
+  debouncedRenderBillingInvoice();
 }
 
 /**
@@ -2664,7 +2988,6 @@ function renderBillingInvoice() {
   const invNumberInput = document.getElementById('invNumberInput');
   const invPatientInput = document.getElementById('invPatientInput');
   const invAgeInput = document.getElementById('invAgeInput');
-  const invStatusSelect = document.getElementById('invStatusSelect');
   const invTotalAmountInput = document.getElementById('invTotalAmountInput');
 
   const today = getTodayString();
@@ -2672,9 +2995,8 @@ function renderBillingInvoice() {
   const numberVal = invNumberInput?.value || 'INV-2026-0842';
   const patientVal = invPatientInput?.value || 'Mom (Mrs. Gurmeet Kaur)';
   const ageVal = invAgeInput?.value || '64 Yrs';
-  const statusVal = invStatusSelect?.value || 'PAID ✅';
 
-  // 1. Header Metadata
+  // 1. Header Metadata & Payment Status Pill
   const numDisplay = document.getElementById('invDisplayNumber');
   if (numDisplay) numDisplay.textContent = numberVal;
 
@@ -2683,14 +3005,12 @@ function renderBillingInvoice() {
 
   const statusDisplay = document.getElementById('invDisplayStatus');
   if (statusDisplay) {
-    statusDisplay.textContent = statusVal;
-    statusDisplay.className = 'inv-status-pill';
-    if (statusVal.includes('PAID') && !statusVal.includes('PARTIAL')) {
-      statusDisplay.classList.add('paid');
-    } else if (statusVal.includes('PENDING')) {
-      statusDisplay.classList.add('pending');
+    if (invoicePaymentStatus === 'paid') {
+      statusDisplay.textContent = 'PAID ✅';
+      statusDisplay.className = 'inv-status-pill paid';
     } else {
-      statusDisplay.classList.add('partial');
+      statusDisplay.textContent = 'PAYMENT DUE ⏳';
+      statusDisplay.className = 'inv-status-pill pending';
     }
   }
 
@@ -2725,18 +3045,46 @@ function renderBillingInvoice() {
     tbody.innerHTML = rowsHtml;
   }
 
-  // 4. Subtotal, Tax Breakdown (SGST & IGST), and Heavily Bolded Total Due
+  // 4. Subtotal, Discount, Tax Breakdown (SGST & IGST), and Heavily Bolded Total Due
   const itemsSubtotal = invoiceItems.reduce((acc, it) => acc + (Number(it.amount) || 0), 0);
   const subtotalDisplay = document.getElementById('invDisplaySubtotal');
   if (subtotalDisplay) {
     subtotalDisplay.textContent = `₹ ${itemsSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   }
 
-  // SGST & IGST calculations
+  // Calculate Discount amount
+  const discVal = Math.max(0, parseFloat(document.getElementById('invDiscountInput')?.value) || 0);
+  let discAmount = 0;
+  if (invoiceDiscountType === 'percent') {
+    discAmount = Math.round((itemsSubtotal * discVal / 100) * 100) / 100;
+  } else {
+    discAmount = Math.min(itemsSubtotal, discVal);
+  }
+
+  // Update Discount line item in invoice breakdown
+  const discHint = document.getElementById('invDiscountCalculatedHint');
+  if (discHint) {
+    discHint.textContent = `-₹ ${discAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  }
+
+  const discRateDisplay = document.getElementById('invDisplayDiscountRate');
+  if (discRateDisplay) {
+    discRateDisplay.textContent = invoiceDiscountType === 'percent' ? `(${discVal}%)` : '(Flat)';
+  }
+
+  const discDisplay = document.getElementById('invDisplayDiscount');
+  if (discDisplay) {
+    discDisplay.textContent = `-₹ ${discAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  }
+
+  // Taxable Subtotal = Subtotal minus Discount
+  const taxableSubtotal = Math.max(0, itemsSubtotal - discAmount);
+
+  // SGST & IGST calculations on taxable subtotal
   const sgstRate = Math.max(0, parseFloat(document.getElementById('invSgstInput')?.value) || 0);
   const igstRate = Math.max(0, parseFloat(document.getElementById('invIgstInput')?.value) || 0);
-  const sgstAmount = (itemsSubtotal * sgstRate) / 100;
-  const igstAmount = (itemsSubtotal * igstRate) / 100;
+  const sgstAmount = (taxableSubtotal * sgstRate) / 100;
+  const igstAmount = (taxableSubtotal * igstRate) / 100;
 
   // Update control panel hints
   const sgstHint = document.getElementById('invSgstCalculatedHint');
@@ -2755,8 +3103,8 @@ function renderBillingInvoice() {
   const igstDisplay = document.getElementById('invDisplayIgst');
   if (igstDisplay) igstDisplay.textContent = `₹ ${igstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
-  // Automatically calculate sum of itemized charges (Subtotal) plus configured SGST and IGST
-  const calculatedTotal = Math.round((itemsSubtotal + sgstAmount + igstAmount) * 100) / 100;
+  // Automatically calculate sum: (Subtotal - Discount) + SGST + IGST
+  const calculatedTotal = Math.round((taxableSubtotal + sgstAmount + igstAmount) * 100) / 100;
 
   let finalTotal = calculatedTotal;
   if (invoiceManualTotal !== null) {
@@ -2773,6 +3121,19 @@ function renderBillingInvoice() {
   const wordsDisplay = document.getElementById('invDisplayWords');
   if (wordsDisplay) {
     wordsDisplay.textContent = numberToWordsINR(finalTotal);
+  }
+
+  // 5. Dynamic Payment Due State (QR Code) vs Paid State (Custom Stamp)
+  const qrContainer = document.getElementById('invQrContainer');
+  const stampWrapper = document.getElementById('invPaidStampWrapper');
+
+  if (invoicePaymentStatus === 'due') {
+    if (qrContainer) qrContainer.style.display = 'flex';
+    if (stampWrapper) stampWrapper.style.display = 'none';
+  } else {
+    // invoicePaymentStatus === 'paid'
+    if (qrContainer) qrContainer.style.display = 'none';
+    if (stampWrapper) stampWrapper.style.display = 'flex';
   }
 }
 
@@ -2825,12 +3186,17 @@ function resetInvoiceDefaults() {
   syncTaxPills('sgst', 0);
   syncTaxPills('igst', 0);
 
+  const discInput = document.getElementById('invDiscountInput');
+  if (discInput) discInput.value = '0';
+  setDiscountPreset(0, 'amount');
+  setInvoicePaymentStatus('paid');
+
   const totalInput = document.getElementById('invTotalAmountInput');
   if (totalInput) totalInput.value = 1800;
 
   renderInvoiceConfigItems();
   renderBillingInvoice();
-  showToast('🔄 Reset to default clinic consultation, monitoring charges, and 0% tax.', 'info');
+  showToast('🔄 Reset to default clinic consultation, monitoring charges, 0% tax, and no discount.', 'info');
 }
 
 /**
@@ -3132,6 +3498,8 @@ window.jumpToDateLog = jumpToDateLog;
 window.renderAnalytics = renderAnalytics;
 window.navigateTo = navigateTo;
 window.toggleTheme = toggleTheme;
+window.toggleSettingsDropdown = toggleSettingsDropdown;
+window.closeSettingsDropdown = closeSettingsDropdown;
 window.openClearModal = openClearModal;
 window.closeClearModal = closeClearModal;
 window.checkDeleteInput = checkDeleteInput;
@@ -3155,6 +3523,10 @@ window.printReceipt = printReceipt;
 
 // Billing Invoice window bindings
 window.switchReportSubPage = switchReportSubPage;
+window.setInvoicePaymentStatus = setInvoicePaymentStatus;
+window.setDiscountType = setDiscountType;
+window.setDiscountPreset = setDiscountPreset;
+window.handleDiscountConfigChange = handleDiscountConfigChange;
 window.handleInvoiceConfigChange = handleInvoiceConfigChange;
 window.handleTaxConfigChange = handleTaxConfigChange;
 window.setTaxPreset = setTaxPreset;
@@ -3260,3 +3632,592 @@ const handleWindowResize = debounce(() => {
 }, 180);
 
 window.addEventListener('resize', handleWindowResize, { passive: true });
+
+// ==========================================================================
+//  MOBILE MODE ARCHITECTURE & NAVIGATION
+// ==========================================================================
+let isMobileModeActive = localStorage.getItem('heartmate_mobile_mode') === 'true';
+
+function initMobileMode() {
+  if (isMobileModeActive) {
+    document.body.classList.add('mobile-mode-active');
+    const btn = document.getElementById('mobileModeToggleBtn');
+    if (btn) {
+      btn.classList.add('active');
+      const textEl = btn.querySelector('.mobile-mode-text');
+      if (textEl) textEl.textContent = 'Mobile Active';
+    }
+  }
+  const badge = document.getElementById('mobileModeStatusBadge');
+  if (badge) badge.textContent = isMobileModeActive ? 'On' : 'Off';
+  updateBottomNavActiveState();
+}
+
+function toggleMobileMode(forcedState) {
+  isMobileModeActive = typeof forcedState === 'boolean' ? forcedState : !isMobileModeActive;
+  localStorage.setItem('heartmate_mobile_mode', isMobileModeActive ? 'true' : 'false');
+
+  document.body.classList.toggle('mobile-mode-active', isMobileModeActive);
+
+  const btn = document.getElementById('mobileModeToggleBtn');
+  if (btn) {
+    btn.classList.toggle('active', isMobileModeActive);
+    const textEl = btn.querySelector('.mobile-mode-text');
+    if (textEl) {
+      textEl.textContent = isMobileModeActive ? 'Mobile Active' : 'Mobile View';
+    }
+  }
+
+  const badge = document.getElementById('mobileModeStatusBadge');
+  if (badge) badge.textContent = isMobileModeActive ? 'On' : 'Off';
+
+  showToast(
+    isMobileModeActive
+      ? '📱 Mobile View Activated — Streamlined for fast logging'
+      : '💻 Desktop View Restored',
+    'info'
+  );
+
+  updateBottomNavActiveState();
+}
+
+function navigateToMobileTab(tab) {
+  navigateTo(tab);
+  updateBottomNavActiveState(tab);
+}
+
+function updateBottomNavActiveState(activePage) {
+  const current = activePage || document.querySelector('.page.active')?.id?.replace('page-', '') || 'log';
+  const bTabLog = document.getElementById('bottomTabLog');
+  const bTabCal = document.getElementById('bottomTabCal');
+  if (bTabLog) bTabLog.classList.toggle('active', current === 'log');
+  if (bTabCal) bTabCal.classList.toggle('active', current === 'calendar');
+}
+
+function toggleMobileMoreSheet(open) {
+  const overlay = document.getElementById('moreSheetOverlay');
+  if (!overlay) return;
+  if (open) {
+    overlay.classList.add('open');
+    const sheetClinical = document.getElementById('sheetClinicalToggle');
+    if (sheetClinical) sheetClinical.checked = isClinicalStatusVisible;
+  } else {
+    overlay.classList.remove('open');
+  }
+}
+
+// ==========================================================================
+//  SELECTIVE QR CODE SYNCHRONIZATION (SENDER & RECEIVER)
+// ==========================================================================
+let isSyncSelectMode = false;
+const selectedSyncDates = new Set();
+let currentSyncPayloadString = '';
+let scannerStream = null;
+let scannerAnimFrameId = null;
+
+function toggleSyncSelectMode(forceState) {
+  isSyncSelectMode = typeof forceState === 'boolean' ? forceState : !isSyncSelectMode;
+  const banner = document.getElementById('calendarSyncBanner');
+  const btn = document.getElementById('syncSelectModeToggle');
+  if (banner) banner.style.display = isSyncSelectMode ? 'flex' : 'none';
+  if (btn) btn.classList.toggle('active', isSyncSelectMode);
+  renderCalendar();
+  updateSyncBanner();
+}
+
+function toggleDateSelection(dateKey, event) {
+  if (event) event.stopPropagation();
+  if (selectedSyncDates.has(dateKey)) {
+    selectedSyncDates.delete(dateKey);
+  } else {
+    selectedSyncDates.add(dateKey);
+  }
+  renderCalendar();
+  updateSyncBanner();
+}
+
+function selectAllLoggedDates() {
+  const all = getAll();
+  let count = 0;
+  Object.keys(all).forEach(dateKey => {
+    const hasReading = SLOTS.some(slot => all[dateKey]?.[slot]?.sys);
+    if (hasReading) {
+      selectedSyncDates.add(dateKey);
+      count++;
+    }
+  });
+  renderCalendar();
+  updateSyncBanner();
+  showToast(`Selected ${count} logged date${count === 1 ? '' : 's'} for sync.`, 'info');
+}
+
+function clearSelectedSyncDates() {
+  selectedSyncDates.clear();
+  renderCalendar();
+  updateSyncBanner();
+}
+
+function updateSyncBanner() {
+  const count = selectedSyncDates.size;
+  const countTextEl = document.getElementById('calSyncCountText');
+  const badgeCountEl = document.getElementById('calSelectedCountBadge');
+  if (countTextEl) {
+    countTextEl.textContent = count === 0
+      ? 'Select logged dates to sync'
+      : `${count} date${count === 1 ? '' : 's'} selected for sync`;
+  }
+  if (badgeCountEl) {
+    badgeCountEl.textContent = count;
+  }
+}
+
+function syncCurrentDayLog() {
+  const dateKey = document.getElementById('logDate').value;
+  if (!dateKey) {
+    showToast('⚠️ Please select a date first.', 'error');
+    return;
+  }
+  const all = getAll();
+  const dayData = all[dateKey];
+  const hasReading = SLOTS.some(s => dayData?.[s]?.sys);
+  if (!hasReading) {
+    showToast(`⚠️ No saved readings found for ${formatDisplayDate(dateKey)}. Please log & save readings first!`, 'error');
+    return;
+  }
+  selectedSyncDates.clear();
+  selectedSyncDates.add(dateKey);
+  generateSelectiveSyncQr([dateKey]);
+}
+
+function generateSelectiveSyncQr(customDates) {
+  const targetDates = customDates && customDates.length > 0
+    ? customDates
+    : Array.from(selectedSyncDates);
+
+  if (targetDates.length === 0) {
+    showToast('⚠️ Please select at least one date with readings to sync.', 'error');
+    return;
+  }
+
+  const all = getAll();
+  const targetedReadings = {};
+  let totalReadingsCount = 0;
+
+  targetDates.sort().forEach(dateKey => {
+    if (all[dateKey]) {
+      const validSlots = {};
+      SLOTS.forEach(slot => {
+        if (all[dateKey][slot] && (all[dateKey][slot].sys || all[dateKey][slot].dia)) {
+          validSlots[slot] = all[dateKey][slot];
+          totalReadingsCount++;
+        }
+      });
+      if (Object.keys(validSlots).length > 0) {
+        targetedReadings[dateKey] = validSlots;
+      }
+    }
+  });
+
+  const validDates = Object.keys(targetedReadings);
+  if (validDates.length === 0) {
+    showToast('⚠️ Selected dates contain no saved blood pressure records to export.', 'error');
+    return;
+  }
+
+  // Serialize ONLY the records from specifically selected dates
+  const payload = {
+    type: 'heartmate_sync',
+    version: 2,
+    source: 'HeartMate Mobile',
+    exportedAt: new Date().toISOString(),
+    dates: validDates,
+    readings: targetedReadings
+  };
+
+  currentSyncPayloadString = JSON.stringify(payload);
+
+  const subtitleEl = document.getElementById('syncQrSubtitle');
+  if (subtitleEl) {
+    subtitleEl.textContent = `${validDates.length} Date${validDates.length === 1 ? '' : 's'} Selected • ${totalReadingsCount} Total Check-in${totalReadingsCount === 1 ? '' : 's'}`;
+  }
+
+  const pillsWrap = document.getElementById('syncSelectedDatesWrap');
+  if (pillsWrap) {
+    pillsWrap.innerHTML = validDates.map(d => {
+      const slotCount = Object.keys(targetedReadings[d]).length;
+      return `<span class="sync-date-pill">📅 ${formatDisplayDate(d)} <span class="sync-date-pill-count">${slotCount} slot${slotCount === 1 ? '' : 's'}</span></span>`;
+    }).join('');
+  }
+
+  const sizeBadge = document.getElementById('syncPayloadSizeBadge');
+  if (sizeBadge) {
+    const byteSize = new Blob([currentSyncPayloadString]).size;
+    sizeBadge.textContent = `${byteSize} bytes (${validDates.length}d payload)`;
+  }
+
+  // Render high-precision QR Code
+  const qrContainer = document.getElementById('syncQrCanvas');
+  if (qrContainer) {
+    qrContainer.innerHTML = '';
+    if (typeof QRCode !== 'undefined') {
+      new QRCode(qrContainer, {
+        text: currentSyncPayloadString,
+        width: 220,
+        height: 220,
+        colorDark: '#0f172a',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+  }
+
+  const modal = document.getElementById('syncQrModal');
+  if (modal) modal.classList.add('open');
+}
+
+function closeSyncQrModal() {
+  const modal = document.getElementById('syncQrModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function copySyncPayloadJson() {
+  if (!currentSyncPayloadString) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(currentSyncPayloadString).then(() => {
+      showToast('📋 Targeted sync payload copied to clipboard!', 'success');
+    }).catch(() => {
+      fallbackCopyText(currentSyncPayloadString);
+    });
+  } else {
+    fallbackCopyText(currentSyncPayloadString);
+  }
+}
+
+function fallbackCopyText(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  showToast('📋 Targeted sync payload copied to clipboard!', 'success');
+}
+
+function downloadSyncQrImage() {
+  const container = document.getElementById('syncQrCanvas');
+  if (!container) return;
+  const img = container.querySelector('img');
+  const canvas = container.querySelector('canvas');
+  let dataUrl = null;
+
+  if (canvas) {
+    dataUrl = canvas.toDataURL('image/png');
+  } else if (img && img.src) {
+    dataUrl = img.src;
+  }
+
+  if (dataUrl) {
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `heartmate-sync-${getTodayString()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast('💾 QR Code image downloaded successfully!', 'success');
+  } else {
+    showToast('⚠️ QR Code image is rendering, please try again.', 'error');
+  }
+}
+
+function openSyncHubModal() {
+  const modal = document.getElementById('syncHubModal');
+  if (modal) modal.classList.add('open');
+}
+
+function closeSyncHubModal() {
+  const modal = document.getElementById('syncHubModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function openSelectiveSyncFromHub() {
+  closeSyncHubModal();
+  navigateTo('calendar');
+  toggleSyncSelectMode(true);
+}
+
+// ==========================================================================
+//  SCANNER LOGIC (DESKTOP RECEIVER)
+// ==========================================================================
+function openSyncScannerModal() {
+  const modal = document.getElementById('syncScannerModal');
+  if (modal) modal.classList.add('open');
+  switchScannerMode('cam');
+}
+
+function closeSyncScannerModal() {
+  stopScannerCamera();
+  const modal = document.getElementById('syncScannerModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function stopScannerCamera() {
+  if (scannerAnimFrameId) {
+    cancelAnimationFrame(scannerAnimFrameId);
+    scannerAnimFrameId = null;
+  }
+  if (scannerStream) {
+    try {
+      scannerStream.getTracks().forEach(track => track.stop());
+    } catch (e) {}
+    scannerStream = null;
+  }
+  const video = document.getElementById('scannerVideo');
+  if (video) video.srcObject = null;
+}
+
+function switchScannerMode(mode) {
+  const camTab = document.getElementById('scannerTabCam');
+  const fileTab = document.getElementById('scannerTabFile');
+  const pasteTab = document.getElementById('scannerTabPaste');
+  const viewfinder = document.getElementById('scannerViewfinder');
+  const filePanel = document.getElementById('scannerFilePanel');
+  const pastePanel = document.getElementById('scannerPastePanel');
+
+  if (camTab) camTab.classList.toggle('active', mode === 'cam');
+  if (fileTab) fileTab.classList.toggle('active', mode === 'file');
+  if (pasteTab) pasteTab.classList.toggle('active', mode === 'paste');
+
+  if (viewfinder) viewfinder.style.display = mode === 'cam' ? 'flex' : 'none';
+  if (filePanel) filePanel.style.display = mode === 'file' ? 'block' : 'none';
+  if (pastePanel) pastePanel.style.display = mode === 'paste' ? 'block' : 'none';
+
+  if (mode === 'cam') {
+    startScannerCamera();
+  } else {
+    stopScannerCamera();
+  }
+}
+
+function startScannerCamera() {
+  stopScannerCamera();
+  const statusText = document.getElementById('scannerStatusText');
+  const video = document.getElementById('scannerVideo');
+  const canvas = document.getElementById('scannerCanvas');
+  if (!video || !canvas) return;
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (statusText) statusText.textContent = 'Camera API unavailable. Use File or Paste.';
+    switchScannerMode('file');
+    return;
+  }
+
+  if (statusText) statusText.textContent = 'Requesting camera access...';
+
+  const constraints = {
+    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+  };
+
+  navigator.mediaDevices.getUserMedia(constraints)
+    .catch(() => navigator.mediaDevices.getUserMedia({ video: true }))
+    .then(stream => {
+      scannerStream = stream;
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      video.play().then(() => {
+        if (statusText) statusText.textContent = 'Point camera at HeartMate Sync QR...';
+        scannerAnimFrameId = requestAnimationFrame(scanQrVideoFrame);
+      }).catch(e => {
+        if (statusText) statusText.textContent = 'Camera start failed. Use File or Paste.';
+      });
+    })
+    .catch(err => {
+      console.warn('Webcam camera access error:', err);
+      if (statusText) statusText.textContent = 'Webcam unavailable. Switch to File or Paste.';
+      switchScannerMode('file');
+    });
+}
+
+function scanQrVideoFrame() {
+  const video = document.getElementById('scannerVideo');
+  const canvas = document.getElementById('scannerCanvas');
+  const statusText = document.getElementById('scannerStatusText');
+
+  if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+    scannerAnimFrameId = requestAnimationFrame(scanQrVideoFrame);
+    return;
+  }
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  if (typeof jsQR !== 'undefined') {
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert'
+    });
+
+    if (code && code.data) {
+      if (statusText) statusText.textContent = 'QR Code detected! Merging...';
+      const success = mergeSyncPayload(code.data);
+      if (success) {
+        stopScannerCamera();
+        closeSyncScannerModal();
+        return;
+      }
+    }
+  }
+
+  scannerAnimFrameId = requestAnimationFrame(scanQrVideoFrame);
+}
+
+function handleQrFileUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      if (typeof jsQR !== 'undefined') {
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code && code.data) {
+          const success = mergeSyncPayload(code.data);
+          if (success) {
+            closeSyncScannerModal();
+            return;
+          }
+        }
+      }
+      showToast('⚠️ Could not decode a valid QR code from this image.', 'error');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleManualJsonPaste() {
+  const input = document.getElementById('scannerPasteInput');
+  if (!input || !input.value.trim()) {
+    showToast('⚠️ Please paste the sync JSON code first.', 'error');
+    return;
+  }
+  const success = mergeSyncPayload(input.value.trim());
+  if (success) {
+    input.value = '';
+    closeSyncScannerModal();
+  }
+}
+
+function mergeSyncPayload(rawPayload) {
+  let payloadObj;
+  try {
+    payloadObj = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload;
+  } catch (e) {
+    showToast('⚠️ Scanned data is not valid JSON.', 'error');
+    return false;
+  }
+
+  if (!payloadObj || typeof payloadObj !== 'object') {
+    showToast('⚠️ Invalid payload structure.', 'error');
+    return false;
+  }
+
+  // Extract readings whether wrapped or raw object
+  const incomingReadings = payloadObj.readings || (payloadObj.type === 'heartmate_sync' ? {} : payloadObj);
+  const incomingDates = Object.keys(incomingReadings);
+
+  if (incomingDates.length === 0) {
+    showToast('⚠️ No blood pressure readings found in payload.', 'error');
+    return false;
+  }
+
+  const master = getAll();
+  let datesUpdated = 0;
+  let readingsOverwritten = 0;
+
+  incomingDates.forEach(dateKey => {
+    const dayData = incomingReadings[dateKey];
+    if (!dayData || typeof dayData !== 'object') return;
+
+    if (!master[dateKey]) {
+      master[dateKey] = {};
+    }
+
+    // Overwrite conflicting timestamps/slots for those specific days to prevent duplicates
+    SLOTS.forEach(slot => {
+      if (dayData[slot] && (dayData[slot].sys || dayData[slot].dia)) {
+        master[dateKey][slot] = {
+          sys: dayData[slot].sys,
+          dia: dayData[slot].dia,
+          pulse: dayData[slot].pulse || '',
+          time: dayData[slot].time || SLOT_CONFIG[slot].defaultTime
+        };
+        readingsOverwritten++;
+      }
+    });
+
+    datesUpdated++;
+  });
+
+  saveAll(master);
+
+  showToast(`✅ Successfully synced & merged ${datesUpdated} date${datesUpdated === 1 ? '' : 's'} (${readingsOverwritten} reading${readingsOverwritten === 1 ? '' : 's'}) into master records!`, 'success');
+
+  // Refresh active pages and mark lazy pages dirty
+  markPagesDirty();
+  loadLogForDate();
+
+  if (document.getElementById('page-calendar')?.classList.contains('active')) {
+    if (typeof renderCalendar === 'function') renderCalendar();
+    pageRenderState.calendar = true;
+    pageRenderState.calendarDirty = false;
+  }
+  if (document.getElementById('page-analytics')?.classList.contains('active')) {
+    if (typeof renderAnalytics === 'function') renderAnalytics();
+    pageRenderState.analytics = true;
+    pageRenderState.analyticsDirty = false;
+  }
+  if (document.getElementById('page-report')?.classList.contains('active')) {
+    if (typeof reportActiveSubPage !== 'undefined' && reportActiveSubPage === 'invoice') {
+      if (typeof renderBillingInvoice === 'function') renderBillingInvoice();
+    } else {
+      if (typeof renderReportPad === 'function') renderReportPad();
+      pageRenderState.report = true;
+      pageRenderState.reportDirty = false;
+    }
+  }
+
+  return true;
+}
+
+// Window exports for HTML onclick bindings
+window.toggleMobileMode = toggleMobileMode;
+window.navigateToMobileTab = navigateToMobileTab;
+window.toggleMobileMoreSheet = toggleMobileMoreSheet;
+window.toggleSyncSelectMode = toggleSyncSelectMode;
+window.toggleDateSelection = toggleDateSelection;
+window.selectAllLoggedDates = selectAllLoggedDates;
+window.clearSelectedSyncDates = clearSelectedSyncDates;
+window.syncCurrentDayLog = syncCurrentDayLog;
+window.generateSelectiveSyncQr = generateSelectiveSyncQr;
+window.closeSyncQrModal = closeSyncQrModal;
+window.copySyncPayloadJson = copySyncPayloadJson;
+window.downloadSyncQrImage = downloadSyncQrImage;
+window.openSyncHubModal = openSyncHubModal;
+window.closeSyncHubModal = closeSyncHubModal;
+window.openSelectiveSyncFromHub = openSelectiveSyncFromHub;
+window.openSyncScannerModal = openSyncScannerModal;
+window.closeSyncScannerModal = closeSyncScannerModal;
+window.switchScannerMode = switchScannerMode;
+window.handleQrFileUpload = handleQrFileUpload;
+window.handleManualJsonPaste = handleManualJsonPaste;
+window.mergeSyncPayload = mergeSyncPayload;
