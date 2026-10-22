@@ -214,17 +214,26 @@ function navigateTo(page) {
   }
 
   if (page === 'report') {
-    if (typeof reportActiveSubPage !== 'undefined' && reportActiveSubPage === 'invoice') {
-      if (typeof initInvoiceDefaults === 'function' && !isInvoiceInitialized) {
-        initInvoiceDefaults();
-      } else if (typeof renderBillingInvoice === 'function') {
-        renderBillingInvoice();
-      }
-    } else {
-      if (!pageRenderState.report || pageRenderState.reportDirty) {
-        renderReportPad();
-        pageRenderState.report = true;
-        pageRenderState.reportDirty = false;
+    let hasLoadedSavedState = false;
+    if (typeof autoLoadReceiptState === 'function' && localStorage.getItem('savedReceiptState')) {
+      hasLoadedSavedState = autoLoadReceiptState();
+      pageRenderState.report = true;
+      pageRenderState.reportDirty = false;
+    }
+
+    if (!hasLoadedSavedState) {
+      if (typeof reportActiveSubPage !== 'undefined' && reportActiveSubPage === 'invoice') {
+        if (typeof initInvoiceDefaults === 'function' && !isInvoiceInitialized) {
+          initInvoiceDefaults();
+        } else if (typeof renderBillingInvoice === 'function') {
+          renderBillingInvoice();
+        }
+      } else {
+        if (!pageRenderState.report || pageRenderState.reportDirty) {
+          renderReportPad();
+          pageRenderState.report = true;
+          pageRenderState.reportDirty = false;
+        }
       }
     }
   }
@@ -3199,6 +3208,242 @@ function resetInvoiceDefaults() {
   showToast('🔄 Reset to default clinic consultation, monitoring charges, 0% tax, and no discount.', 'info');
 }
 
+// Dedicated LocalStorage Key for Report Generator & Billing Invoice State
+const RECEIPT_STATE_STORAGE_KEY = 'savedReceiptState';
+
+/**
+ * Serializes all current input values and dynamic state from both the Report Generator
+ * (Prescription Pad) and Billing Invoice sub-pages into a JSON object and saves to localStorage.
+ * Displays visual button animation and a quick confirmation tooltip/toast.
+ */
+function saveReceiptConfiguration() {
+  try {
+    // 1. Prescription Pad Input Values
+    const rxData = {
+      patient: document.getElementById('rxPatient')?.value ?? '',
+      age: document.getElementById('rxAge')?.value ?? '',
+      date: document.getElementById('rxDate')?.value ?? '',
+      diagnosis: document.getElementById('rxDiagnosis')?.value ?? '',
+      notes: document.getElementById('rxNotes')?.value ?? '',
+      startDate: document.getElementById('reportStartDate')?.value ?? '',
+      endDate: document.getElementById('reportEndDate')?.value ?? '',
+      includeGraph: document.getElementById('toggleIncludeGraph') ? document.getElementById('toggleIncludeGraph').checked : true,
+      dataMode: reportCurrentDataMode || 'averages',
+      isPrescriptionVisible: isPrescriptionVisible !== false
+    };
+
+    // 2. Billing Invoice Input Values & State
+    const invoiceData = {
+      issueDate: document.getElementById('invDateInput')?.value ?? '',
+      invoiceNumber: document.getElementById('invNumberInput')?.value ?? '',
+      patientName: document.getElementById('invPatientInput')?.value ?? '',
+      patientAge: document.getElementById('invAgeInput')?.value ?? '',
+      paymentStatus: invoicePaymentStatus || 'paid',
+      discountValue: parseFloat(document.getElementById('invDiscountInput')?.value) || 0,
+      discountType: invoiceDiscountType || 'amount',
+      sgstRate: parseFloat(document.getElementById('invSgstInput')?.value) || 0,
+      igstRate: parseFloat(document.getElementById('invIgstInput')?.value) || 0,
+      totalAmountManual: invoiceManualTotal !== null ? invoiceManualTotal : null,
+      totalAmountInputValue: document.getElementById('invTotalAmountInput')?.value ?? '',
+      items: (invoiceItems && invoiceItems.length > 0) ? JSON.parse(JSON.stringify(invoiceItems)) : []
+    };
+
+    // 3. Complete Consolidated Receipt State Object
+    const receiptState = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      activeSubPage: reportActiveSubPage || 'rx',
+      rx: rxData,
+      invoice: invoiceData
+    };
+
+    // 4. Save to Browser localStorage
+    localStorage.setItem(RECEIPT_STATE_STORAGE_KEY, JSON.stringify(receiptState));
+
+    // 5. Button Pulse Animations & Visual Feedback
+    const btns = [
+      document.getElementById('saveRxConfigBtn'),
+      document.getElementById('saveInvoiceConfigBtn')
+    ];
+    btns.forEach(btn => {
+      if (btn) {
+        btn.classList.add('saved-pulse');
+        const iconSpan = btn.querySelector('span:first-child');
+        const textSpan = btn.querySelector('span:last-child');
+        const origText = textSpan ? textSpan.textContent : '';
+        if (textSpan) textSpan.textContent = 'Saved! ✓';
+        if (iconSpan) iconSpan.textContent = '✓';
+
+        setTimeout(() => {
+          btn.classList.remove('saved-pulse');
+          if (textSpan) textSpan.textContent = origText || 'Save Configuration';
+          if (iconSpan) iconSpan.textContent = '💾';
+        }, 1600);
+      }
+    });
+
+    showToast('💾 Receipt & Invoice configuration saved successfully!', 'success');
+    return true;
+  } catch (err) {
+    console.error('Failed to save receipt configuration:', err);
+    showToast('⚠️ Could not save configuration to local storage.', 'error');
+    return false;
+  }
+}
+
+/**
+ * Auto-load initialization function:
+ * Checks localStorage for 'savedReceiptState'. If found, deserializes JSON, pre-fills all
+ * prescription and invoice input fields, restores dynamic items, taxes, discounts, and payment status,
+ * and re-renders the exact layout and views.
+ */
+function autoLoadReceiptState() {
+  try {
+    const raw = localStorage.getItem(RECEIPT_STATE_STORAGE_KEY);
+    if (!raw) return false;
+
+    const state = JSON.parse(raw);
+    if (!state || typeof state !== 'object') return false;
+
+    // 1. Restore Prescription Pad Inputs
+    if (state.rx) {
+      const rx = state.rx;
+      const patientEl = document.getElementById('rxPatient');
+      if (patientEl && typeof rx.patient === 'string') patientEl.value = rx.patient;
+
+      const ageEl = document.getElementById('rxAge');
+      if (ageEl && typeof rx.age === 'string') ageEl.value = rx.age;
+
+      const dateEl = document.getElementById('rxDate');
+      if (dateEl && typeof rx.date === 'string') dateEl.value = rx.date;
+
+      const diagEl = document.getElementById('rxDiagnosis');
+      if (diagEl && typeof rx.diagnosis === 'string') diagEl.value = rx.diagnosis;
+
+      const notesEl = document.getElementById('rxNotes');
+      if (notesEl && typeof rx.notes === 'string') notesEl.value = rx.notes;
+
+      const startEl = document.getElementById('reportStartDate');
+      if (startEl && rx.startDate) startEl.value = rx.startDate;
+
+      const endEl = document.getElementById('reportEndDate');
+      if (endEl && rx.endDate) endEl.value = rx.endDate;
+
+      const graphCheck = document.getElementById('toggleIncludeGraph');
+      if (graphCheck && typeof rx.includeGraph === 'boolean') {
+        graphCheck.checked = rx.includeGraph;
+        const container = document.getElementById('rxGraphContainer');
+        if (container) container.style.display = rx.includeGraph ? 'block' : 'none';
+      }
+
+      if (rx.dataMode && (rx.dataMode === 'averages' || rx.dataMode === 'individual')) {
+        reportCurrentDataMode = rx.dataMode;
+        const btnAvg = document.getElementById('modeBtnAvg');
+        const btnInd = document.getElementById('modeBtnInd');
+        if (btnAvg) btnAvg.classList.toggle('active', rx.dataMode === 'averages');
+        if (btnInd) btnInd.classList.toggle('active', rx.dataMode === 'individual');
+      }
+
+      if (typeof rx.isPrescriptionVisible === 'boolean') {
+        isPrescriptionVisible = rx.isPrescriptionVisible;
+        const recBlock = document.getElementById('rxRecommendationsBlock');
+        const btn = document.getElementById('toggleRxContentBtn');
+        const textEl = document.getElementById('toggleRxBtnText');
+        const iconEl = document.getElementById('toggleRxIcon');
+        if (recBlock) recBlock.style.display = isPrescriptionVisible ? 'block' : 'none';
+        if (textEl) {
+          textEl.textContent = isPrescriptionVisible
+            ? 'Remove Prescription & Lifestyle Recommendations'
+            : 'Restore Prescription & Lifestyle Recommendations';
+        }
+        if (iconEl) iconEl.textContent = isPrescriptionVisible ? '🗑️' : '➕';
+        if (btn) btn.classList.toggle('active-removed', !isPrescriptionVisible);
+      }
+    }
+
+    // 2. Restore Billing Invoice Inputs & State
+    if (state.invoice) {
+      const inv = state.invoice;
+
+      const dateEl = document.getElementById('invDateInput');
+      if (dateEl && inv.issueDate) dateEl.value = inv.issueDate;
+
+      const numEl = document.getElementById('invNumberInput');
+      if (numEl && typeof inv.invoiceNumber === 'string') numEl.value = inv.invoiceNumber;
+
+      const patEl = document.getElementById('invPatientInput');
+      if (patEl && typeof inv.patientName === 'string') patEl.value = inv.patientName;
+
+      const ageEl = document.getElementById('invAgeInput');
+      if (ageEl && typeof inv.patientAge === 'string') ageEl.value = inv.patientAge;
+
+      if (Array.isArray(inv.items) && inv.items.length > 0) {
+        invoiceItems = JSON.parse(JSON.stringify(inv.items));
+      }
+
+      if (inv.totalAmountManual !== undefined) {
+        invoiceManualTotal = inv.totalAmountManual;
+      }
+
+      if (inv.discountType) {
+        setDiscountType(inv.discountType);
+      }
+      if (inv.discountValue !== undefined) {
+        const discInput = document.getElementById('invDiscountInput');
+        if (discInput) discInput.value = inv.discountValue;
+        invoiceDiscountValue = inv.discountValue;
+        syncDiscountPills(inv.discountValue);
+      }
+
+      if (inv.sgstRate !== undefined) {
+        const sgstInput = document.getElementById('invSgstInput');
+        if (sgstInput) sgstInput.value = inv.sgstRate;
+        syncTaxPills('sgst', inv.sgstRate);
+      }
+
+      if (inv.igstRate !== undefined) {
+        const igstInput = document.getElementById('invIgstInput');
+        if (igstInput) igstInput.value = inv.igstRate;
+        syncTaxPills('igst', inv.igstRate);
+      }
+
+      if (inv.totalAmountInputValue) {
+        const totalInput = document.getElementById('invTotalAmountInput');
+        if (totalInput) totalInput.value = inv.totalAmountInputValue;
+      }
+
+      if (inv.paymentStatus) {
+        invoicePaymentStatus = inv.paymentStatus === 'due' ? 'due' : 'paid';
+        const segDue = document.getElementById('statusSegmentDue');
+        const segPaid = document.getElementById('statusSegmentPaid');
+        const toggle = document.getElementById('invStatusToggle');
+        if (segDue) segDue.classList.toggle('active', invoicePaymentStatus === 'due');
+        if (segPaid) segPaid.classList.toggle('active', invoicePaymentStatus === 'paid');
+        if (toggle) toggle.checked = (invoicePaymentStatus === 'paid');
+      }
+
+      isInvoiceInitialized = true;
+      renderInvoiceConfigItems();
+    }
+
+    // 3. Switch to the saved active sub-page and render views
+    const subpage = (state.activeSubPage === 'invoice') ? 'invoice' : 'rx';
+    switchReportSubPage(subpage);
+
+    if (subpage === 'invoice') {
+      renderBillingInvoice();
+    } else {
+      renderReportPad();
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Failed to auto-load saved receipt state:', err);
+    return false;
+  }
+}
+
+
 /**
  * Shared Export Functionality:
  * Dynamically captures whichever sub-page is currently active (Prescription Pad or Billing Invoice).
@@ -3520,6 +3765,8 @@ window.toggleReceiptGraph = toggleReceiptGraph;
 window.autofillPrescriptionData = autofillPrescriptionData;
 window.downloadReceiptImage = downloadReceiptImage;
 window.printReceipt = printReceipt;
+window.saveReceiptConfiguration = saveReceiptConfiguration;
+window.autoLoadReceiptState = autoLoadReceiptState;
 
 // Billing Invoice window bindings
 window.switchReportSubPage = switchReportSubPage;
